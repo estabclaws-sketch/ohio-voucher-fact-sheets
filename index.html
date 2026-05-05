@@ -437,20 +437,87 @@
   }
   .leaflet-tooltip.map-tip:before { display: none; }
 
+  /* ============ MOBILE: bottom-sheet pattern ============ */
+  /* Close button hidden on desktop */
+  .panel-close-mobile { display: none; }
+
   @media (max-width: 720px) {
-    .container { flex-direction: column; height: calc(100vh - 130px); }
-    #map { height: 50%; }
-    #panel {
-      width: 100%;
-      height: 50%;
-      border-left: none;
-      border-top: 2px solid var(--ink);
-    }
     header { padding: 12px 16px; }
     header h1 { font-size: 18px; }
-    .controls { padding: 10px 16px; }
-    .toggle-group button { padding: 8px 10px; font-size: 12px; }
-    .status-pill { font-size: 10px; }
+    header .meta { display: none; }
+
+    .controls { padding: 8px 12px; gap: 8px; }
+    .toggle-group button { padding: 7px 10px; font-size: 12px; }
+    .search-box { min-width: 0; max-width: none; flex: 1 1 100%; order: 2; }
+    .status-pill { font-size: 10px; padding: 3px 8px; order: 3; margin-left: 0; }
+
+    .container { flex-direction: column; height: calc(100vh - 110px); position: relative; }
+    #map { flex: 1; height: auto; width: 100%; }
+
+    /* Panel becomes a bottom sheet that slides up over the map */
+    #panel {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 78vh;
+      max-height: 78vh;
+      border-left: none;
+      border-top: none;
+      border-top-left-radius: 16px;
+      border-top-right-radius: 16px;
+      box-shadow: 0 -6px 24px rgba(30, 58, 95, 0.25);
+      transform: translateY(100%);
+      transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
+      z-index: 1100;
+      pointer-events: none;
+    }
+    #panel.shown {
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    /* Drag-handle hint at top of sheet */
+    #panel.shown::before {
+      content: '';
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 40px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.45);
+      border-radius: 2px;
+      z-index: 2;
+      pointer-events: none;
+    }
+    /* Empty state never appears on mobile (the sheet just stays hidden) */
+    .panel-empty { display: none; }
+    /* Make room for the drag handle in the header */
+    .panel-header { padding-top: 26px; position: relative; }
+    /* Show the close button on mobile */
+    .panel-close-mobile {
+      display: block;
+      position: absolute;
+      top: 18px;
+      right: 14px;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.18);
+      border: none;
+      color: #fff;
+      font-size: 22px;
+      line-height: 1;
+      cursor: pointer;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 500;
+      padding: 0;
+      z-index: 3;
+    }
+    .panel-close-mobile:hover { background: rgba(255, 255, 255, 0.28); }
+    /* Sheet body needs proper scrolling */
+    .panel-body { -webkit-overflow-scrolling: touch; }
   }
 </style>
 </head>
@@ -588,6 +655,17 @@ function selectFeature(layer, feature) {
   layer.bringToFront();
   state.selectedFeature = { layer, feature };
   renderPanel(feature);
+  document.getElementById('panel').classList.add('shown');
+}
+
+function closePanel() {
+  document.getElementById('panel').classList.remove('shown');
+  if (state.selectedFeature) {
+    state.selectedFeature.layer.setStyle(
+      styleForFeature(state.selectedFeature.feature, false)
+    );
+    state.selectedFeature = null;
+  }
 }
 
 function renderChamber(chamber) {
@@ -674,6 +752,7 @@ function renderRepPanel(feature) {
 
   const html = `
     <div class="panel-header">
+      <button class="panel-close-mobile" onclick="closePanel()" aria-label="Close">&times;</button>
       <div class="district-label">${chamberLabel} ${p.district}</div>
       <h2 class="rep-name">${escapeHtml(repFullName)}</h2>
       ${p.party ? `<span class="party ${partyClass}">${escapeHtml(p.party)}</span>` : ''}
@@ -717,6 +796,7 @@ function renderCountyPanel(feature) {
 
   const html = `
     <div class="panel-header">
+      <button class="panel-close-mobile" onclick="closePanel()" aria-label="Close">&times;</button>
       <div class="district-label">County</div>
       <h2 class="rep-name">${escapeHtml(countyName)}</h2>
       ${seat ? `<div class="subtitle">County seat: ${escapeHtml(seat)}</div>` : ''}
@@ -874,6 +954,7 @@ function switchTo(chamber) {
   });
   state.selectedFeature = null;
   renderChamber(chamber);
+  document.getElementById('panel').classList.remove('shown');
   const promptText = chamber === 'county'
     ? 'Click a county to see all schools in it and which legislators represent them.'
     : 'Select any colored district on the map to see the legislator\'s schools and fact sheet status.';
