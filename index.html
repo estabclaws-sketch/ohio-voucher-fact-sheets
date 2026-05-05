@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Ohio Voucher Fact Sheets — Find a Legislator's Schools</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -441,15 +441,17 @@
   /* Close button hidden on desktop */
   .panel-close-mobile { display: none; }
 
-  @media (max-width: 720px) {
+  @media (max-width: 720px), (pointer: coarse) and (max-width: 1024px) {
     header { padding: 12px 16px; }
     header h1 { font-size: 18px; }
-    header .meta { display: none; }
+    header .meta { display: none !important; }
 
     .controls { padding: 8px 12px; gap: 8px; }
     .toggle-group button { padding: 7px 10px; font-size: 12px; }
     .search-box { min-width: 0; max-width: none; flex: 1 1 100%; order: 2; }
-    .status-pill { font-size: 10px; padding: 3px 8px; order: 3; margin-left: 0; }
+    .search-box input { font-size: 16px; padding: 10px 12px 10px 34px; } /* 16px prevents iOS auto-zoom on focus */
+    .status-pill { font-size: 10px; padding: 3px 8px; order: 3; margin-left: 0; max-width: 100%; }
+    .status-pill .timestamp { display: none; }
 
     .container { flex-direction: column; height: calc(100vh - 110px); position: relative; }
     #map { flex: 1; height: auto; width: 100%; }
@@ -494,7 +496,7 @@
     /* Empty state never appears on mobile (the sheet just stays hidden) */
     .panel-empty { display: none; }
     /* Make room for the drag handle in the header */
-    .panel-header { padding-top: 26px; position: relative; }
+    .panel-header { padding-top: 26px; position: relative; touch-action: none; }
     /* Show the close button on mobile */
     .panel-close-mobile {
       display: block;
@@ -616,6 +618,14 @@ function setStatus(text, kind) {
   const el = document.getElementById('status');
   el.textContent = text;
   el.className = 'status-pill ' + (kind || '');
+}
+
+function setStatusOk(count, generated) {
+  const el = document.getElementById('status');
+  const ts = generated ? new Date(generated).toLocaleString() : '';
+  el.innerHTML = '\u2713 ' + count + ' schools loaded'
+    + (ts ? '<span class="timestamp"> \u00b7 updated ' + ts + '</span>' : '');
+  el.className = 'status-pill ok';
 }
 
 // ============================================================================
@@ -1058,6 +1068,79 @@ document.getElementById('search').addEventListener('focus', () => {
 // INIT
 // ============================================================================
 
+function initSwipeToDismiss() {
+  const panel = document.getElementById('panel');
+  let startY = 0;
+  let currentY = 0;
+  let dragging = false;
+  let confirmedDrag = false;
+  let panelHeight = 0;
+
+  panel.addEventListener('touchstart', (e) => {
+    // Only run in mobile bottom-sheet mode
+    if (getComputedStyle(panel).position !== 'fixed') return;
+    if (!panel.classList.contains('shown')) return;
+    // Only initiate from the header (so list scroll still works)
+    if (!e.target.closest('.panel-header')) return;
+    // Don't treat taps on buttons as drags
+    if (e.target.closest('button')) return;
+    startY = e.touches[0].clientY;
+    currentY = startY;
+    dragging = true;
+    confirmedDrag = false;
+    panelHeight = panel.offsetHeight;
+  }, { passive: true });
+
+  panel.addEventListener('touchmove', (e) => {
+    if (!dragging) return;
+    currentY = e.touches[0].clientY;
+    const delta = currentY - startY;
+    if (delta < 0) {
+      // Don't allow dragging up past fully-open
+      panel.style.transition = 'none';
+      panel.style.transform = '';
+      return;
+    }
+    if (delta > 5) confirmedDrag = true;
+    if (confirmedDrag) {
+      panel.style.transition = 'none';
+      panel.style.transform = 'translateY(' + delta + 'px)';
+      e.preventDefault();
+    }
+  }, { passive: false });
+
+  function endDrag() {
+    if (!dragging) return;
+    const delta = currentY - startY;
+    const threshold = Math.max(80, panelHeight * 0.22);
+    if (confirmedDrag && delta > threshold) {
+      // Dismiss: animate from current drag position to off-screen
+      panel.style.transition = 'transform 0.22s ease-out';
+      panel.style.transform = 'translateY(100%)';
+      setTimeout(() => {
+        panel.style.transition = '';
+        panel.style.transform = '';
+        panel.classList.remove('shown');
+        if (state.selectedFeature) {
+          state.selectedFeature.layer.setStyle(
+            styleForFeature(state.selectedFeature.feature, false)
+          );
+          state.selectedFeature = null;
+        }
+      }, 220);
+    } else {
+      // Snap back to fully open
+      panel.style.transition = '';
+      panel.style.transform = '';
+    }
+    dragging = false;
+    confirmedDrag = false;
+  }
+  panel.addEventListener('touchend', endDrag);
+  panel.addEventListener('touchcancel', endDrag);
+}
+initSwipeToDismiss();
+
 (async function init() {
   try {
     setStatus('Loading map…', 'loading');
@@ -1066,10 +1149,7 @@ document.getElementById('search').addEventListener('focus', () => {
     setStatus('Loading school data…', 'loading');
     try {
       state.trackerData = await loadTrackerData();
-      const generated = state.trackerData.generated
-        ? new Date(state.trackerData.generated).toLocaleString()
-        : '';
-      setStatus(`✓ ${state.trackerData.count} schools loaded${generated ? ' · updated ' + generated : ''}`, 'ok');
+      setStatusOk(state.trackerData.count, state.trackerData.generated);
     } catch (apiErr) {
       console.error(apiErr);
       setStatus('Map loaded · school data unavailable', 'error');
