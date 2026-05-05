@@ -353,6 +353,34 @@
     background: var(--bg) !important;
   }
 
+  .leaflet-tooltip.map-tip {
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    white-space: nowrap;
+  }
+  .leaflet-tooltip.map-tip:before { display: none; }
+
+  .leaflet-tooltip.map-tip {
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    font-family: 'Montserrat', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 10px;
+    border-radius: 4px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    white-space: nowrap;
+  }
+  .leaflet-tooltip.map-tip:before { display: none; }
+
   @media (max-width: 720px) {
     .container { flex-direction: column; height: calc(100vh - 130px); }
     #map { height: 50%; }
@@ -528,6 +556,19 @@ function renderChamber(chamber) {
         ? feat.properties.name.toLowerCase()
         : feat.properties.district;
       state.layersByDistrict[chamber][key] = { layer: lyr, feature: feat };
+
+      let tooltipText;
+      if (chamber === 'county') {
+        tooltipText = feat.properties.name + ' County';
+      } else {
+        const tp = feat.properties;
+        const tname = ((tp.first || '') + ' ' + (tp.last || '')).trim();
+        const tprefix = chamber === 'house' ? 'HD' : 'SD';
+        const tparty = tp.party ? ' (' + tp.party + ')' : '';
+        tooltipText = tprefix + ' ' + tp.district + ' — ' + tname + tparty;
+      }
+      lyr.bindTooltip(tooltipText, { sticky: true, direction: 'top', className: 'map-tip', offset: [0, -8] });
+
       lyr.on('click', () => selectFeature(lyr, feat));
       lyr.on('mouseover', () => {
         if (state.selectedFeature && state.selectedFeature.layer === lyr) return;
