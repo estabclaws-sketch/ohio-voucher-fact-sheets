@@ -1,0 +1,727 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ohio Voucher Fact Sheets — Find a Legislator's Schools</title>
+
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+  integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+  crossorigin="" />
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  /* ============ DESIGN TOKENS ============ */
+  /* Honesty for Ohio Education palette: navy + yellow + white */
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f4f7fb;
+    --ink: #1e3a5f;          /* primary navy */
+    --ink-deep: #16223a;     /* deeper navy for text */
+    --ink-soft: #5d7390;     /* muted navy-grey */
+    --line: #1e3a5f;
+    --rule: rgba(30, 58, 95, 0.15);
+    --panel: #ffffff;
+    --panel-soft: #eef3f9;
+    --accent: #f4c842;       /* brand yellow */
+    --accent-soft: rgba(244, 200, 66, 0.18);
+    --accent-deep: #c89400;  /* darker yellow for text contrast */
+    --R: #b91c1c;            /* republican red */
+    --D: #2563aa;            /* democratic blue */
+    --I: #6e6259;            /* independent grey */
+    --good: #15803d;
+    --good-soft: rgba(21, 128, 61, 0.10);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: 'Montserrat', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink-deep);
+    overflow: hidden;
+  }
+
+  /* ============ HEADER ============ */
+  header {
+    background: var(--ink);
+    color: #ffffff;
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    border-bottom: 3px solid var(--ink-deep);
+  }
+
+  header h1 {
+    margin: 0;
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+  }
+
+  header .meta {
+    font-size: 12px;
+    opacity: 0.75;
+    font-weight: 500;
+  }
+
+  /* ============ CONTROL BAR ============ */
+  .controls {
+    background: var(--bg-soft);
+    padding: 10px 24px;
+    display: flex;
+    gap: 16px;
+    align-items: center;
+    border-bottom: 1px solid var(--rule);
+    flex-wrap: wrap;
+  }
+
+  .toggle-group {
+    display: inline-flex;
+    border: 2px solid var(--ink);
+    border-radius: 4px;
+    overflow: hidden;
+    background: var(--panel);
+  }
+
+  .toggle-group button {
+    border: none;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 13px;
+    background: transparent;
+    color: var(--ink);
+  }
+
+  .toggle-group button.active {
+    background: var(--ink);
+    color: #ffffff;
+  }
+
+  .search-box {
+    flex: 1;
+    min-width: 200px;
+    max-width: 380px;
+    position: relative;
+  }
+
+  .search-box input {
+    width: 100%;
+    padding: 8px 12px 8px 32px;
+    border: 2px solid var(--ink);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 13px;
+    background: var(--panel);
+    color: var(--ink-deep);
+    font-weight: 500;
+  }
+
+  .search-box::before {
+    content: '🔍';
+    position: absolute;
+    left: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 12px;
+    opacity: 0.5;
+    pointer-events: none;
+  }
+
+  .status-pill {
+    margin-left: auto;
+    font-size: 11px;
+    color: var(--ink-soft);
+    padding: 4px 10px;
+    background: var(--panel);
+    border: 1px solid var(--rule);
+    border-radius: 999px;
+    font-weight: 500;
+  }
+
+  .status-pill.loading { color: var(--accent-deep); }
+  .status-pill.error   { color: var(--R); border-color: var(--R); }
+  .status-pill.ok      { color: var(--good); }
+
+  /* ============ MAIN LAYOUT ============ */
+  .container {
+    display: flex;
+    height: calc(100vh - 110px);
+  }
+
+  #map {
+    flex: 1;
+    background: var(--bg);
+  }
+
+  /* ============ SIDE PANEL ============ */
+  #panel {
+    width: 380px;
+    background: var(--panel);
+    border-left: 2px solid var(--ink);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-empty {
+    padding: 32px 24px;
+    color: var(--ink-soft);
+    font-size: 14px;
+    line-height: 1.55;
+    text-align: center;
+    font-weight: 500;
+  }
+
+  .panel-empty h2 {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--ink);
+    margin: 0 0 12px;
+  }
+
+  .panel-header {
+    background: var(--ink);
+    color: #ffffff;
+    padding: 18px 22px;
+  }
+
+  .panel-header .district-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    opacity: 0.75;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+
+  .panel-header .rep-name {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    line-height: 1.15;
+    margin: 0;
+  }
+
+  .panel-header .party {
+    display: inline-block;
+    margin-top: 8px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+  }
+
+  .party.R { background: var(--R); color: white; }
+  .party.D { background: var(--D); color: white; }
+  .party.I { background: var(--I); color: white; }
+
+  .panel-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px 22px;
+  }
+
+  .panel-body h3 {
+    font-family: 'Montserrat', sans-serif;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    margin: 0 0 10px;
+  }
+
+  .school-count {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 10px;
+    font-weight: 500;
+  }
+
+  .school-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .school-item {
+    padding: 10px 0;
+    border-top: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 4px 12px;
+  }
+
+  .school-item:first-child { border-top: none; }
+
+  .school-name {
+    font-weight: 600;
+    font-size: 14px;
+    color: var(--ink-deep);
+    line-height: 1.3;
+  }
+
+  .school-county {
+    grid-column: 1;
+    font-size: 11px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 500;
+  }
+
+  .school-action {
+    grid-row: 1 / 3;
+    grid-column: 2;
+    align-self: center;
+    text-align: right;
+  }
+
+  .school-action a {
+    text-decoration: none;
+    font-size: 12px;
+    font-weight: 700;
+    padding: 5px 10px;
+    border-radius: 4px;
+    white-space: nowrap;
+    display: inline-block;
+  }
+
+  .school-action a.has-sheet {
+    color: var(--good);
+    background: var(--good-soft);
+  }
+
+  .school-action a.has-sheet:hover {
+    background: rgba(21, 128, 61, 0.18);
+  }
+
+  .school-action a.request {
+    color: var(--ink-deep);
+    background: var(--accent);
+    border: 1px solid var(--accent-deep);
+  }
+
+  .school-action a.request:hover {
+    background: #e8b833;
+  }
+
+  .panel-footer {
+    background: var(--bg-soft);
+    border-top: 1px solid var(--rule);
+    padding: 10px 22px;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+
+  .panel-footer button {
+    background: none;
+    border: 1px solid var(--ink);
+    padding: 5px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--ink);
+    margin-right: 6px;
+  }
+
+  .panel-footer button:hover { background: var(--ink); color: #ffffff; }
+
+  /* ============ MAP STYLE TWEAKS ============ */
+  .leaflet-container {
+    font-family: 'Montserrat', sans-serif !important;
+    background: var(--bg) !important;
+  }
+
+  /* ============ MOBILE ============ */
+  @media (max-width: 720px) {
+    .container { flex-direction: column; height: calc(100vh - 130px); }
+    #map { height: 50%; }
+    #panel {
+      width: 100%;
+      height: 50%;
+      border-left: none;
+      border-top: 2px solid var(--ink);
+    }
+    header { padding: 12px 16px; }
+    header h1 { font-size: 18px; }
+    .controls { padding: 10px 16px; }
+    .status-pill { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Ohio Voucher Fact Sheets</h1>
+  <span class="meta">Live data · Click a district to see schools</span>
+</header>
+
+<div class="controls">
+  <div class="toggle-group" role="tablist">
+    <button id="btn-house" class="active" role="tab">Ohio House</button>
+    <button id="btn-senate" role="tab">Ohio Senate</button>
+  </div>
+  <div class="search-box">
+    <input id="search" type="text" placeholder="Search rep name, district #, or school...">
+  </div>
+  <div id="status" class="status-pill loading">Loading data…</div>
+</div>
+
+<div class="container">
+  <div id="map"></div>
+  <aside id="panel">
+    <div class="panel-empty">
+      <h2>Click a district</h2>
+      <p>Select any colored district on the map to see the legislator's schools and fact sheet status.</p>
+    </div>
+  </aside>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+  integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+  crossorigin=""></script>
+
+<script>
+// ============================================================================
+// CONFIG — paste your Apps Script Web App URL between the quotes below
+// ============================================================================
+
+const TRACKER_API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+const REQUEST_FORM_URL = 'https://bit.ly/vouchlocalfacts';
+
+// ============================================================================
+// STATE
+// ============================================================================
+
+const state = {
+  chamber: 'house',
+  trackerData: null,
+  geoLayers: { house: null, senate: null },
+  selectedFeature: null,
+  layersByDistrict: { house: {}, senate: {} },
+};
+
+const map = L.map('map', {
+  center: [40.4, -82.7],
+  zoom: 7,
+  zoomControl: true,
+  scrollWheelZoom: true,
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png', {
+  attribution: '&copy; OpenStreetMap &copy; CARTO',
+  subdomains: 'abcd',
+  maxZoom: 19,
+}).addTo(map);
+
+// ============================================================================
+// DATA LOADING
+// ============================================================================
+
+async function loadStaticGeo() {
+  const [houseGeo, senateGeo] = await Promise.all([
+    fetch('legislative_house.geojson').then(r => r.json()),
+    fetch('legislative_senate.geojson').then(r => r.json()),
+  ]);
+  return { house: houseGeo, senate: senateGeo };
+}
+
+async function loadTrackerData() {
+  if (TRACKER_API_URL.startsWith('PASTE_')) {
+    throw new Error('Tracker API URL not configured');
+  }
+  const res = await fetch(TRACKER_API_URL);
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return await res.json();
+}
+
+function setStatus(text, kind) {
+  const el = document.getElementById('status');
+  el.textContent = text;
+  el.className = 'status-pill ' + (kind || '');
+}
+
+// ============================================================================
+// MAP RENDERING
+// ============================================================================
+
+function styleForFeature(feature, isSelected) {
+  const party = feature.properties.party;
+  const fillColor = party === 'R' ? '#b91c1c'
+                  : party === 'D' ? '#2563aa'
+                  : '#6e6259';
+  return {
+    fillColor: fillColor,
+    fillOpacity: isSelected ? 0.6 : 0.3,
+    color: isSelected ? '#16223a' : fillColor,
+    weight: isSelected ? 3 : 1,
+    opacity: 1,
+  };
+}
+
+function selectFeature(layer, feature) {
+  if (state.selectedFeature) {
+    state.selectedFeature.layer.setStyle(
+      styleForFeature(state.selectedFeature.feature, false)
+    );
+  }
+  layer.setStyle(styleForFeature(feature, true));
+  layer.bringToFront();
+  state.selectedFeature = { layer, feature };
+  renderPanel(feature);
+}
+
+function renderChamber(chamber) {
+  if (state.geoLayers[chamber === 'house' ? 'senate' : 'house']) {
+    map.removeLayer(state.geoLayers[chamber === 'house' ? 'senate' : 'house']);
+  }
+  if (state.geoLayers[chamber]) {
+    state.geoLayers[chamber].addTo(map);
+    return;
+  }
+
+  const geo = state.staticGeo[chamber];
+  if (!geo) return;
+
+  const layer = L.geoJSON(geo, {
+    style: feat => styleForFeature(feat, false),
+    onEachFeature: (feat, lyr) => {
+      state.layersByDistrict[chamber][feat.properties.district] = { layer: lyr, feature: feat };
+      lyr.on('click', () => selectFeature(lyr, feat));
+      lyr.on('mouseover', () => {
+        if (state.selectedFeature && state.selectedFeature.layer === lyr) return;
+        lyr.setStyle({ ...styleForFeature(feat, false), fillOpacity: 0.45 });
+      });
+      lyr.on('mouseout', () => {
+        if (state.selectedFeature && state.selectedFeature.layer === lyr) return;
+        lyr.setStyle(styleForFeature(feat, false));
+      });
+    },
+  }).addTo(map);
+
+  state.geoLayers[chamber] = layer;
+}
+
+// ============================================================================
+// SIDE PANEL
+// ============================================================================
+
+function renderPanel(feature) {
+  const panel = document.getElementById('panel');
+  const p = feature.properties;
+  const repFullName = (p.first + ' ' + p.last).trim() || 'Unknown';
+  const chamber = state.chamber;
+  const chamberLabel = chamber === 'house' ? 'House District' : 'Senate District';
+  const partyClass = (p.party === 'R' || p.party === 'D' || p.party === 'I')
+    ? p.party : 'I';
+
+  const schools = (state.trackerData?.districts || []).filter(d => {
+    const list = chamber === 'house' ? d.houseDistricts : d.senateDistricts;
+    return list.indexOf(p.district) !== -1;
+  });
+
+  schools.sort((a, b) => a.name.localeCompare(b.name));
+
+  const haveCount = schools.filter(s => s.hasFactSheet).length;
+  const needCount = schools.length - haveCount;
+
+  const html = `
+    <div class="panel-header">
+      <div class="district-label">${chamberLabel} ${p.district}</div>
+      <h2 class="rep-name">${escapeHtml(repFullName)}</h2>
+      ${p.party ? `<span class="party ${partyClass}">${escapeHtml(p.party)}</span>` : ''}
+    </div>
+    <div class="panel-body">
+      ${schools.length === 0
+        ? `<p class="school-count">${state.trackerData ? 'No school districts in this legislative district.' : 'Loading school data…'}</p>`
+        : `<h3>Schools in this district</h3>
+           <p class="school-count">${schools.length} school${schools.length === 1 ? '' : 's'} · ${haveCount} with fact sheet${needCount > 0 ? ` · ${needCount} need one` : ''}</p>
+           <ul class="school-list">${schools.map(renderSchoolItem).join('')}</ul>`}
+    </div>
+    <div class="panel-footer">
+      <button onclick="copySchoolList()">Copy list</button>
+      <button onclick="copyMissingList()">Copy missing</button>
+    </div>
+  `;
+  panel.innerHTML = html;
+}
+
+function renderSchoolItem(school) {
+  const action = school.hasFactSheet && school.factSheetUrl
+    ? `<a class="has-sheet" href="${escapeAttr(school.factSheetUrl)}" target="_blank" rel="noopener">View ✓</a>`
+    : `<a class="request" href="${escapeAttr(REQUEST_FORM_URL)}" target="_blank" rel="noopener">Request</a>`;
+
+  return `
+    <li class="school-item">
+      <div class="school-name">${escapeHtml(school.name)}</div>
+      <div class="school-county">${escapeHtml(school.county || '')}</div>
+      <div class="school-action">${action}</div>
+    </li>
+  `;
+}
+
+function getCurrentSchools() {
+  if (!state.selectedFeature || !state.trackerData) return [];
+  const p = state.selectedFeature.feature.properties;
+  return state.trackerData.districts
+    .filter(d => {
+      const list = state.chamber === 'house' ? d.houseDistricts : d.senateDistricts;
+      return list.indexOf(p.district) !== -1;
+    })
+    .sort((a, b) => a.name.localeCompare(b.name));
+}
+
+function copySchoolList() {
+  const schools = getCurrentSchools();
+  if (!schools.length) return;
+  const text = schools.map(s => s.name + (s.county ? ` (${s.county})` : '') +
+    (s.hasFactSheet ? ' ✓' : ' — needs fact sheet')).join('\n');
+  navigator.clipboard.writeText(text);
+}
+
+function copyMissingList() {
+  const schools = getCurrentSchools().filter(s => !s.hasFactSheet);
+  if (!schools.length) return;
+  const text = schools.map(s => s.name + (s.county ? ` (${s.county})` : '')).join('\n');
+  navigator.clipboard.writeText(text);
+}
+
+// ============================================================================
+// SEARCH
+// ============================================================================
+
+document.getElementById('search').addEventListener('input', (e) => {
+  const q = e.target.value.toLowerCase().trim();
+  if (!q) return;
+
+  const numMatch = q.match(/^(\d+)$/);
+  if (numMatch) {
+    const num = parseInt(numMatch[1], 10);
+    const entry = state.layersByDistrict[state.chamber][num];
+    if (entry) {
+      map.fitBounds(entry.layer.getBounds(), { padding: [40, 40] });
+      selectFeature(entry.layer, entry.feature);
+      return;
+    }
+  }
+
+  const layers = state.layersByDistrict[state.chamber];
+  for (const districtNum in layers) {
+    const e = layers[districtNum];
+    const name = (e.feature.properties.first + ' ' + e.feature.properties.last).toLowerCase();
+    if (name.includes(q)) {
+      map.fitBounds(e.layer.getBounds(), { padding: [40, 40] });
+      selectFeature(e.layer, e.feature);
+      return;
+    }
+  }
+
+  if (state.trackerData) {
+    for (const d of state.trackerData.districts) {
+      if (d.name.toLowerCase().includes(q)) {
+        const districts = state.chamber === 'house' ? d.houseDistricts : d.senateDistricts;
+        if (districts.length > 0) {
+          const entry = state.layersByDistrict[state.chamber][districts[0]];
+          if (entry) {
+            map.fitBounds(entry.layer.getBounds(), { padding: [40, 40] });
+            selectFeature(entry.layer, entry.feature);
+            return;
+          }
+        }
+      }
+    }
+  }
+});
+
+// ============================================================================
+// CHAMBER TOGGLE
+// ============================================================================
+
+document.getElementById('btn-house').addEventListener('click', () => {
+  if (state.chamber === 'house') return;
+  state.chamber = 'house';
+  document.getElementById('btn-house').classList.add('active');
+  document.getElementById('btn-senate').classList.remove('active');
+  state.selectedFeature = null;
+  renderChamber('house');
+  document.getElementById('panel').innerHTML = `
+    <div class="panel-empty">
+      <h2>Click a district</h2>
+      <p>Select any colored district on the map to see the legislator's schools and fact sheet status.</p>
+    </div>
+  `;
+});
+
+document.getElementById('btn-senate').addEventListener('click', () => {
+  if (state.chamber === 'senate') return;
+  state.chamber = 'senate';
+  document.getElementById('btn-senate').classList.add('active');
+  document.getElementById('btn-house').classList.remove('active');
+  state.selectedFeature = null;
+  renderChamber('senate');
+  document.getElementById('panel').innerHTML = `
+    <div class="panel-empty">
+      <h2>Click a district</h2>
+      <p>Select any colored district on the map to see the legislator's schools and fact sheet status.</p>
+    </div>
+  `;
+});
+
+// ============================================================================
+// UTILS
+// ============================================================================
+
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function escapeAttr(s) { return escapeHtml(s); }
+
+// ============================================================================
+// INIT
+// ============================================================================
+
+(async function init() {
+  try {
+    setStatus('Loading map…', 'loading');
+    state.staticGeo = await loadStaticGeo();
+    renderChamber('house');
+    setStatus('Loading school data…', 'loading');
+    try {
+      state.trackerData = await loadTrackerData();
+      const generated = state.trackerData.generated
+        ? new Date(state.trackerData.generated).toLocaleString()
+        : '';
+      setStatus(`✓ ${state.trackerData.count} schools loaded${generated ? ' · updated ' + generated : ''}`, 'ok');
+    } catch (apiErr) {
+      console.error(apiErr);
+      setStatus('Map loaded · school data unavailable', 'error');
+    }
+  } catch (err) {
+    console.error(err);
+    setStatus('Failed to load map', 'error');
+  }
+})();
+</script>
+</body>
+</html>
