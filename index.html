@@ -5,35 +5,31 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ohio Voucher Fact Sheets — Find a Legislator's Schools</title>
 
-<!-- Leaflet CSS -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
   integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
   crossorigin="" />
 
-<!-- Fonts -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
-  /* ============ DESIGN TOKENS ============ */
-  /* Honesty for Ohio Education palette: navy + yellow + white */
   :root {
     --bg: #ffffff;
     --bg-soft: #f4f7fb;
-    --ink: #1e3a5f;          /* primary navy */
-    --ink-deep: #16223a;     /* deeper navy for text */
-    --ink-soft: #5d7390;     /* muted navy-grey */
+    --ink: #1e3a5f;
+    --ink-deep: #16223a;
+    --ink-soft: #5d7390;
     --line: #1e3a5f;
     --rule: rgba(30, 58, 95, 0.15);
     --panel: #ffffff;
     --panel-soft: #eef3f9;
-    --accent: #f4c842;       /* brand yellow */
+    --accent: #f4c842;
     --accent-soft: rgba(244, 200, 66, 0.18);
-    --accent-deep: #c89400;  /* darker yellow for text contrast */
-    --R: #b91c1c;            /* republican red */
-    --D: #2563aa;            /* democratic blue */
-    --I: #6e6259;            /* independent grey */
+    --accent-deep: #c89400;
+    --R: #b91c1c;
+    --D: #2563aa;
+    --I: #6e6259;
     --good: #15803d;
     --good-soft: rgba(21, 128, 61, 0.10);
   }
@@ -50,7 +46,6 @@
     overflow: hidden;
   }
 
-  /* ============ HEADER ============ */
   header {
     background: var(--ink);
     color: #ffffff;
@@ -75,7 +70,6 @@
     font-weight: 500;
   }
 
-  /* ============ CONTROL BAR ============ */
   .controls {
     background: var(--bg-soft);
     padding: 10px 24px;
@@ -96,14 +90,17 @@
 
   .toggle-group button {
     border: none;
-    padding: 8px 16px;
+    padding: 8px 14px;
     cursor: pointer;
     font-family: inherit;
     font-weight: 600;
     font-size: 13px;
     background: transparent;
     color: var(--ink);
+    border-right: 1px solid var(--rule);
   }
+
+  .toggle-group button:last-child { border-right: none; }
 
   .toggle-group button.active {
     background: var(--ink);
@@ -155,7 +152,6 @@
   .status-pill.error   { color: var(--R); border-color: var(--R); }
   .status-pill.ok      { color: var(--good); }
 
-  /* ============ MAIN LAYOUT ============ */
   .container {
     display: flex;
     height: calc(100vh - 110px);
@@ -166,7 +162,6 @@
     background: var(--bg);
   }
 
-  /* ============ SIDE PANEL ============ */
   #panel {
     width: 380px;
     background: var(--panel);
@@ -216,6 +211,13 @@
     margin: 0;
   }
 
+  .panel-header .subtitle {
+    font-size: 12px;
+    opacity: 0.75;
+    margin-top: 4px;
+    font-weight: 500;
+  }
+
   .panel-header .party {
     display: inline-block;
     margin-top: 8px;
@@ -243,8 +245,10 @@
     text-transform: uppercase;
     letter-spacing: 0.08em;
     color: var(--ink-soft);
-    margin: 0 0 10px;
+    margin: 16px 0 10px;
   }
+
+  .panel-body h3:first-child { margin-top: 0; }
 
   .school-count {
     font-size: 12px;
@@ -344,13 +348,11 @@
 
   .panel-footer button:hover { background: var(--ink); color: #ffffff; }
 
-  /* ============ MAP STYLE TWEAKS ============ */
   .leaflet-container {
     font-family: 'Montserrat', sans-serif !important;
     background: var(--bg) !important;
   }
 
-  /* ============ MOBILE ============ */
   @media (max-width: 720px) {
     .container { flex-direction: column; height: calc(100vh - 130px); }
     #map { height: 50%; }
@@ -363,6 +365,7 @@
     header { padding: 12px 16px; }
     header h1 { font-size: 18px; }
     .controls { padding: 10px 16px; }
+    .toggle-group button { padding: 8px 10px; font-size: 12px; }
     .status-pill { font-size: 10px; }
   }
 </style>
@@ -371,16 +374,17 @@
 
 <header>
   <h1>Ohio Voucher Fact Sheets</h1>
-  <span class="meta">Live data · Click a district to see schools</span>
+  <span class="meta">Live data · Click a district or county to see schools</span>
 </header>
 
 <div class="controls">
   <div class="toggle-group" role="tablist">
     <button id="btn-house" class="active" role="tab">Ohio House</button>
     <button id="btn-senate" role="tab">Ohio Senate</button>
+    <button id="btn-county" role="tab">Counties</button>
   </div>
   <div class="search-box">
-    <input id="search" type="text" placeholder="Search rep name, district #, or school...">
+    <input id="search" type="text" placeholder="Search rep, district #, school, or county...">
   </div>
   <div id="status" class="status-pill loading">Loading data…</div>
 </div>
@@ -412,11 +416,13 @@ const REQUEST_FORM_URL = 'https://bit.ly/vouchlocalfacts';
 // ============================================================================
 
 const state = {
-  chamber: 'house',
+  chamber: 'house',  // 'house' | 'senate' | 'county'
   trackerData: null,
-  geoLayers: { house: null, senate: null },
+  staticGeo: null,
+  geoLayers: { house: null, senate: null, county: null },
   selectedFeature: null,
-  layersByDistrict: { house: {}, senate: {} },
+  // House/senate keyed by district number; county keyed by county name lowercase
+  layersByDistrict: { house: {}, senate: {}, county: {} },
 };
 
 const map = L.map('map', {
@@ -437,11 +443,12 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}{r}.png
 // ============================================================================
 
 async function loadStaticGeo() {
-  const [houseGeo, senateGeo] = await Promise.all([
+  const [houseGeo, senateGeo, countyGeo] = await Promise.all([
     fetch('legislative_house.geojson').then(r => r.json()),
     fetch('legislative_senate.geojson').then(r => r.json()),
+    fetch('counties.geojson').then(r => r.json()),
   ]);
-  return { house: houseGeo, senate: senateGeo };
+  return { house: houseGeo, senate: senateGeo, county: countyGeo };
 }
 
 async function loadTrackerData() {
@@ -464,6 +471,15 @@ function setStatus(text, kind) {
 // ============================================================================
 
 function styleForFeature(feature, isSelected) {
+  if (state.chamber === 'county') {
+    return {
+      fillColor: '#1e3a5f',
+      fillOpacity: isSelected ? 0.5 : 0.15,
+      color: isSelected ? '#16223a' : '#1e3a5f',
+      weight: isSelected ? 3 : 1,
+      opacity: 1,
+    };
+  }
   const party = feature.properties.party;
   const fillColor = party === 'R' ? '#b91c1c'
                   : party === 'D' ? '#2563aa'
@@ -490,9 +506,13 @@ function selectFeature(layer, feature) {
 }
 
 function renderChamber(chamber) {
-  if (state.geoLayers[chamber === 'house' ? 'senate' : 'house']) {
-    map.removeLayer(state.geoLayers[chamber === 'house' ? 'senate' : 'house']);
-  }
+  // Hide other layers
+  ['house', 'senate', 'county'].forEach(c => {
+    if (c !== chamber && state.geoLayers[c]) {
+      map.removeLayer(state.geoLayers[c]);
+    }
+  });
+
   if (state.geoLayers[chamber]) {
     state.geoLayers[chamber].addTo(map);
     return;
@@ -504,11 +524,15 @@ function renderChamber(chamber) {
   const layer = L.geoJSON(geo, {
     style: feat => styleForFeature(feat, false),
     onEachFeature: (feat, lyr) => {
-      state.layersByDistrict[chamber][feat.properties.district] = { layer: lyr, feature: feat };
+      const key = chamber === 'county'
+        ? feat.properties.name.toLowerCase()
+        : feat.properties.district;
+      state.layersByDistrict[chamber][key] = { layer: lyr, feature: feat };
       lyr.on('click', () => selectFeature(lyr, feat));
       lyr.on('mouseover', () => {
         if (state.selectedFeature && state.selectedFeature.layer === lyr) return;
-        lyr.setStyle({ ...styleForFeature(feat, false), fillOpacity: 0.45 });
+        const baseStyle = styleForFeature(feat, false);
+        lyr.setStyle({ ...baseStyle, fillOpacity: baseStyle.fillOpacity + 0.15 });
       });
       lyr.on('mouseout', () => {
         if (state.selectedFeature && state.selectedFeature.layer === lyr) return;
@@ -525,6 +549,13 @@ function renderChamber(chamber) {
 // ============================================================================
 
 function renderPanel(feature) {
+  if (state.chamber === 'county') {
+    return renderCountyPanel(feature);
+  }
+  return renderRepPanel(feature);
+}
+
+function renderRepPanel(feature) {
   const panel = document.getElementById('panel');
   const p = feature.properties;
   const repFullName = (p.first + ' ' + p.last).trim() || 'Unknown';
@@ -554,25 +585,79 @@ function renderPanel(feature) {
         ? `<p class="school-count">${state.trackerData ? 'No school districts in this legislative district.' : 'Loading school data…'}</p>`
         : `<h3>Schools in this district</h3>
            <p class="school-count">${schools.length} school${schools.length === 1 ? '' : 's'} · ${haveCount} with fact sheet${needCount > 0 ? ` · ${needCount} need one` : ''}</p>
-           <ul class="school-list">${schools.map(renderSchoolItem).join('')}</ul>`}
+           <ul class="school-list">${schools.map(s => renderSchoolItem(s, 'rep')).join('')}</ul>`}
     </div>
     <div class="panel-footer">
       <button onclick="copySchoolList()">Copy list</button>
       <button onclick="copyMissingList()">Copy missing</button>
     </div>
   `;
-  panel.innerHTML = html;
+  document.getElementById('panel').innerHTML = html;
 }
 
-function renderSchoolItem(school) {
+function renderCountyPanel(feature) {
+  const countyName = feature.properties.name;
+  const seat = feature.properties.seat;
+
+  const schools = (state.trackerData?.districts || [])
+    .filter(d => d.county && d.county.toLowerCase() === countyName.toLowerCase())
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const haveCount = schools.filter(s => s.hasFactSheet).length;
+  const needCount = schools.length - haveCount;
+
+  // Collect unique reps representing schools in this county
+  const houseReps = new Set();
+  const senators = new Set();
+  schools.forEach(s => {
+    s.houseReps.forEach(r => houseReps.add(r));
+    s.senators.forEach(r => senators.add(r));
+  });
+
+  const houseList = [...houseReps].sort().join(', ');
+  const senateList = [...senators].sort().join(', ');
+
+  const html = `
+    <div class="panel-header">
+      <div class="district-label">County</div>
+      <h2 class="rep-name">${escapeHtml(countyName)}</h2>
+      ${seat ? `<div class="subtitle">County seat: ${escapeHtml(seat)}</div>` : ''}
+    </div>
+    <div class="panel-body">
+      ${schools.length === 0
+        ? `<p class="school-count">${state.trackerData ? 'No school districts found in this county.' : 'Loading school data…'}</p>`
+        : `<h3>Schools in ${escapeHtml(countyName)} County</h3>
+           <p class="school-count">${schools.length} school${schools.length === 1 ? '' : 's'} · ${haveCount} with fact sheet${needCount > 0 ? ` · ${needCount} need one` : ''}</p>
+           <ul class="school-list">${schools.map(s => renderSchoolItem(s, 'county')).join('')}</ul>
+           ${houseList ? `<h3>House representatives</h3><p class="school-count">${escapeHtml(houseList)}</p>` : ''}
+           ${senateList ? `<h3>Senators</h3><p class="school-count">${escapeHtml(senateList)}</p>` : ''}`}
+    </div>
+    <div class="panel-footer">
+      <button onclick="copySchoolList()">Copy list</button>
+      <button onclick="copyMissingList()">Copy missing</button>
+    </div>
+  `;
+  document.getElementById('panel').innerHTML = html;
+}
+
+function renderSchoolItem(school, mode) {
   const action = school.hasFactSheet && school.factSheetUrl
     ? `<a class="has-sheet" href="${escapeAttr(school.factSheetUrl)}" target="_blank" rel="noopener">View ✓</a>`
     : `<a class="request" href="${escapeAttr(REQUEST_FORM_URL)}" target="_blank" rel="noopener">Request</a>`;
 
+  let subtitle;
+  if (mode === 'county') {
+    const hd = school.houseDistricts.length ? 'HD ' + school.houseDistricts.join(', ') : '';
+    const sd = school.senateDistricts.length ? 'SD ' + school.senateDistricts.join(', ') : '';
+    subtitle = [hd, sd].filter(Boolean).join(' · ');
+  } else {
+    subtitle = school.county || '';
+  }
+
   return `
     <li class="school-item">
       <div class="school-name">${escapeHtml(school.name)}</div>
-      <div class="school-county">${escapeHtml(school.county || '')}</div>
+      <div class="school-county">${escapeHtml(subtitle)}</div>
       <div class="school-action">${action}</div>
     </li>
   `;
@@ -580,6 +665,14 @@ function renderSchoolItem(school) {
 
 function getCurrentSchools() {
   if (!state.selectedFeature || !state.trackerData) return [];
+
+  if (state.chamber === 'county') {
+    const countyName = state.selectedFeature.feature.properties.name.toLowerCase();
+    return state.trackerData.districts
+      .filter(d => d.county && d.county.toLowerCase() === countyName)
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
   const p = state.selectedFeature.feature.properties;
   return state.trackerData.districts
     .filter(d => {
@@ -612,6 +705,21 @@ document.getElementById('search').addEventListener('input', (e) => {
   const q = e.target.value.toLowerCase().trim();
   if (!q) return;
 
+  // County mode: search county names only
+  if (state.chamber === 'county') {
+    const counties = state.layersByDistrict.county;
+    for (const key in counties) {
+      if (key.includes(q)) {
+        const entry = counties[key];
+        map.fitBounds(entry.layer.getBounds(), { padding: [40, 40] });
+        selectFeature(entry.layer, entry.feature);
+        return;
+      }
+    }
+    return;
+  }
+
+  // 1) District number
   const numMatch = q.match(/^(\d+)$/);
   if (numMatch) {
     const num = parseInt(numMatch[1], 10);
@@ -623,6 +731,7 @@ document.getElementById('search').addEventListener('input', (e) => {
     }
   }
 
+  // 2) Rep name
   const layers = state.layersByDistrict[state.chamber];
   for (const districtNum in layers) {
     const e = layers[districtNum];
@@ -634,9 +743,12 @@ document.getElementById('search').addEventListener('input', (e) => {
     }
   }
 
+  // 3) School name OR county
   if (state.trackerData) {
     for (const d of state.trackerData.districts) {
-      if (d.name.toLowerCase().includes(q)) {
+      const matchName = d.name.toLowerCase().includes(q);
+      const matchCounty = d.county && d.county.toLowerCase().includes(q);
+      if (matchName || matchCounty) {
         const districts = state.chamber === 'house' ? d.houseDistricts : d.senateDistricts;
         if (districts.length > 0) {
           const entry = state.layersByDistrict[state.chamber][districts[0]];
@@ -652,38 +764,32 @@ document.getElementById('search').addEventListener('input', (e) => {
 });
 
 // ============================================================================
-// CHAMBER TOGGLE
+// MODE TOGGLE
 // ============================================================================
 
-document.getElementById('btn-house').addEventListener('click', () => {
-  if (state.chamber === 'house') return;
-  state.chamber = 'house';
-  document.getElementById('btn-house').classList.add('active');
-  document.getElementById('btn-senate').classList.remove('active');
+function switchTo(chamber) {
+  if (state.chamber === chamber) return;
+  state.chamber = chamber;
+  ['house', 'senate', 'county'].forEach(c => {
+    document.getElementById('btn-' + c).classList.toggle('active', c === chamber);
+  });
   state.selectedFeature = null;
-  renderChamber('house');
+  renderChamber(chamber);
+  const promptText = chamber === 'county'
+    ? 'Click a county to see all schools in it and which legislators represent them.'
+    : 'Select any colored district on the map to see the legislator\'s schools and fact sheet status.';
+  const heading = chamber === 'county' ? 'Click a county' : 'Click a district';
   document.getElementById('panel').innerHTML = `
     <div class="panel-empty">
-      <h2>Click a district</h2>
-      <p>Select any colored district on the map to see the legislator's schools and fact sheet status.</p>
+      <h2>${heading}</h2>
+      <p>${promptText}</p>
     </div>
   `;
-});
+}
 
-document.getElementById('btn-senate').addEventListener('click', () => {
-  if (state.chamber === 'senate') return;
-  state.chamber = 'senate';
-  document.getElementById('btn-senate').classList.add('active');
-  document.getElementById('btn-house').classList.remove('active');
-  state.selectedFeature = null;
-  renderChamber('senate');
-  document.getElementById('panel').innerHTML = `
-    <div class="panel-empty">
-      <h2>Click a district</h2>
-      <p>Select any colored district on the map to see the legislator's schools and fact sheet status.</p>
-    </div>
-  `;
-});
+document.getElementById('btn-house').addEventListener('click', () => switchTo('house'));
+document.getElementById('btn-senate').addEventListener('click', () => switchTo('senate'));
+document.getElementById('btn-county').addEventListener('click', () => switchTo('county'));
 
 // ============================================================================
 // UTILS
