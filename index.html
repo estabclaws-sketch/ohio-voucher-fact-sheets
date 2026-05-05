@@ -152,6 +152,76 @@
   .status-pill.error   { color: var(--R); border-color: var(--R); }
   .status-pill.ok      { color: var(--good); }
 
+
+  .search-results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background: var(--panel);
+    border: 2px solid var(--ink);
+    border-radius: 4px;
+    box-shadow: 0 4px 12px rgba(30, 58, 95, 0.18);
+    max-height: 360px;
+    overflow-y: auto;
+    z-index: 1000;
+  }
+  .search-result {
+    padding: 10px 12px;
+    border-top: 1px solid var(--rule);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 2px 10px;
+    cursor: pointer;
+    align-items: center;
+  }
+  .search-result:first-child { border-top: none; }
+  .search-result:hover { background: var(--bg-soft); }
+  .search-result-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--ink-deep);
+    line-height: 1.25;
+  }
+  .search-result-meta {
+    grid-column: 1;
+    font-size: 10px;
+    color: var(--ink-soft);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 500;
+  }
+  .search-result-action {
+    grid-row: 1 / 3;
+    grid-column: 2;
+    align-self: center;
+  }
+  .search-result-action a {
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 9px;
+    border-radius: 4px;
+    white-space: nowrap;
+  }
+  .search-result-action a.has-sheet {
+    color: var(--good);
+    background: var(--good-soft);
+  }
+  .search-result-action a.request {
+    color: var(--ink-deep);
+    background: var(--accent);
+    border: 1px solid var(--accent-deep);
+  }
+  .search-result-empty {
+    padding: 14px;
+    text-align: center;
+    color: var(--ink-soft);
+    font-size: 12px;
+    font-weight: 500;
+  }
+
   .container {
     display: flex;
     height: calc(100vh - 110px);
@@ -367,20 +437,6 @@
   }
   .leaflet-tooltip.map-tip:before { display: none; }
 
-  .leaflet-tooltip.map-tip {
-    background: var(--ink);
-    color: #fff;
-    border: none;
-    font-family: 'Montserrat', sans-serif;
-    font-size: 12px;
-    font-weight: 600;
-    padding: 5px 10px;
-    border-radius: 4px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
-    white-space: nowrap;
-  }
-  .leaflet-tooltip.map-tip:before { display: none; }
-
   @media (max-width: 720px) {
     .container { flex-direction: column; height: calc(100vh - 130px); }
     #map { height: 50%; }
@@ -412,7 +468,8 @@
     <button id="btn-county" role="tab">Counties</button>
   </div>
   <div class="search-box">
-    <input id="search" type="text" placeholder="Search rep, district #, school, or county...">
+    <input id="search" type="text" placeholder="Search rep, district #, school, or county..." autocomplete="off">
+    <div id="search-results" class="search-results" hidden></div>
   </div>
   <div id="status" class="status-pill loading">Loading data…</div>
 </div>
@@ -744,6 +801,7 @@ function copyMissingList() {
 
 document.getElementById('search').addEventListener('input', (e) => {
   const q = e.target.value.toLowerCase().trim();
+  renderSearchResults(q);
   if (!q) return;
 
   // County mode: search county names only
@@ -843,6 +901,77 @@ function escapeHtml(s) {
 }
 
 function escapeAttr(s) { return escapeHtml(s); }
+
+function renderSearchResults(q) {
+  const dropdown = document.getElementById('search-results');
+  if (!q || !state.trackerData) {
+    dropdown.hidden = true;
+    dropdown.innerHTML = '';
+    return;
+  }
+  const matches = state.trackerData.districts
+    .filter(d => d.name.toLowerCase().includes(q))
+    .sort((a, b) => {
+      // Prioritize matches that start with the query
+      const aStarts = a.name.toLowerCase().startsWith(q);
+      const bStarts = b.name.toLowerCase().startsWith(q);
+      if (aStarts !== bStarts) return aStarts ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    })
+    .slice(0, 8);
+  if (matches.length === 0) {
+    dropdown.innerHTML = '<div class="search-result-empty">No matching school districts</div>';
+    dropdown.hidden = false;
+    return;
+  }
+  dropdown.innerHTML = matches.map(d => {
+    const action = d.hasFactSheet && d.factSheetUrl
+      ? `<a class="has-sheet" href="${escapeAttr(d.factSheetUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">View &#10003;</a>`
+      : `<a class="request" href="${escapeAttr(REQUEST_FORM_URL)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Request</a>`;
+    return `
+      <div class="search-result" onclick="jumpToSchool('${escapeAttr(d.irn)}')">
+        <div class="search-result-name">${escapeHtml(d.name)}</div>
+        <div class="search-result-meta">${escapeHtml(d.county || '')}</div>
+        <div class="search-result-action">${action}</div>
+      </div>
+    `;
+  }).join('');
+  dropdown.hidden = false;
+}
+
+function jumpToSchool(irn) {
+  if (!state.trackerData) return;
+  const school = state.trackerData.districts.find(d => d.irn === irn);
+  if (!school) return;
+  if (state.chamber === 'county' && school.county) {
+    const entry = state.layersByDistrict.county[school.county.toLowerCase()];
+    if (entry) {
+      map.fitBounds(entry.layer.getBounds(), { padding: [40, 40] });
+      selectFeature(entry.layer, entry.feature);
+    }
+  } else {
+    const districts = state.chamber === 'house' ? school.houseDistricts : school.senateDistricts;
+    if (districts && districts.length > 0) {
+      const entry = state.layersByDistrict[state.chamber][districts[0]];
+      if (entry) {
+        map.fitBounds(entry.layer.getBounds(), { padding: [40, 40] });
+        selectFeature(entry.layer, entry.feature);
+      }
+    }
+  }
+  document.getElementById('search-results').hidden = true;
+  document.getElementById('search').blur();
+}
+
+document.addEventListener('click', (e) => {
+  if (!e.target.closest('.search-box')) {
+    document.getElementById('search-results').hidden = true;
+  }
+});
+document.getElementById('search').addEventListener('focus', () => {
+  const q = document.getElementById('search').value.toLowerCase().trim();
+  if (q) renderSearchResults(q);
+});
 
 // ============================================================================
 // INIT
