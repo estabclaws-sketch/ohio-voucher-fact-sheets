@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ohio Voucher Fact Sheets — Find a Legislator's Schools</title>
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
@@ -45,6 +45,13 @@
     color: var(--ink-deep);
     overflow: hidden;
   }
+  body {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    height: 100dvh; /* dynamic viewport on mobile Safari */
+  }
+  header, .controls { flex-shrink: 0; }
 
   header {
     background: var(--ink);
@@ -224,7 +231,8 @@
 
   .container {
     display: flex;
-    height: calc(100vh - 110px);
+    flex: 1;
+    min-height: 0;
   }
 
   #map {
@@ -453,7 +461,7 @@
     .status-pill { font-size: 10px; padding: 3px 8px; order: 3; margin-left: 0; max-width: 100%; }
     .status-pill .timestamp { display: none; }
 
-    .container { flex-direction: column; height: calc(100vh - 110px); position: relative; }
+    .container { flex-direction: column; flex: 1; min-height: 0; position: relative; }
     #map { flex: 1; height: auto; width: 100%; }
 
     /* Panel becomes a bottom sheet that slides up over the map */
