@@ -1,0 +1,723 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ohio Voucher Tracker — Full Database</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<style>
+  :root {
+    --bg: #ffffff;
+    --bg-soft: #f4f7fb;
+    --ink: #1e3a5f;
+    --ink-deep: #16223a;
+    --ink-soft: #5d7390;
+    --rule: rgba(30, 58, 95, 0.15);
+    --panel: #ffffff;
+    --panel-soft: #eef3f9;
+    --accent: #f4c842;
+    --accent-deep: #c89400;
+    --R: #b91c1c;
+    --D: #2563aa;
+    --I: #6e6259;
+    --good: #15803d;
+    --good-soft: rgba(21, 128, 61, 0.10);
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: 'Montserrat', system-ui, sans-serif;
+    background: var(--bg-soft);
+    color: var(--ink-deep);
+  }
+
+  /* HEADER */
+  header {
+    background: var(--ink);
+    color: #ffffff;
+    padding: 14px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 3px solid var(--ink-deep);
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  header h1 {
+    margin: 0;
+    font-weight: 700;
+    font-size: 22px;
+    letter-spacing: -0.01em;
+  }
+  .header-nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .nav-link {
+    color: #ffffff;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 4px;
+    border: 1px solid rgba(255,255,255,0.25);
+  }
+  .nav-link:hover { background: rgba(255,255,255,0.1); }
+  .nav-link.active {
+    background: #ffffff;
+    color: var(--ink-deep);
+    border-color: #ffffff;
+  }
+  .tracker-link {
+    background: var(--accent);
+    color: var(--ink-deep);
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid var(--accent-deep);
+    white-space: nowrap;
+    margin-left: 6px;
+  }
+  .tracker-link:hover { background: #e8b833; }
+
+  /* DASHBOARD */
+  .dashboard-wrap {
+    background: var(--panel);
+    border-bottom: 1px solid var(--rule);
+    padding: 22px 24px;
+  }
+  .dashboard {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 20px 32px;
+    align-items: center;
+  }
+  .stats-num {
+    font-size: 48px;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .stats-num-total {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .stats-label {
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-top: 4px;
+    font-weight: 500;
+    line-height: 1.4;
+  }
+  .stats-meta {
+    min-width: 0;
+  }
+  .stats-progress {
+    height: 12px;
+    background: var(--bg-soft);
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+  }
+  .stats-progress-bar {
+    height: 100%;
+    background: var(--good);
+    transition: width 0.5s ease-out;
+  }
+  .stats-detail {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .stats-detail .stats-good { color: var(--good); }
+  .stats-detail .stats-missing { color: var(--ink-soft); }
+  .stats-updated {
+    font-size: 10px;
+    color: var(--ink-soft);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 500;
+  }
+
+  /* FILTER BAR */
+  .filter-bar {
+    background: var(--panel);
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--rule);
+    display: flex;
+    gap: 14px;
+    align-items: center;
+    flex-wrap: wrap;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .filter-bar input {
+    flex: 1;
+    min-width: 220px;
+    max-width: 380px;
+    padding: 9px 12px 9px 32px;
+    border: 2px solid var(--ink);
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 14px;
+    color: var(--ink-deep);
+    font-weight: 500;
+    background: var(--panel) url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='%231e3a5f' opacity='0.5'><path d='M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z'/></svg>") no-repeat 8px center;
+    background-size: 16px;
+  }
+  .filter-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .chip {
+    background: var(--panel);
+    border: 2px solid var(--ink);
+    color: var(--ink);
+    padding: 7px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: 600;
+    font-size: 12px;
+  }
+  .chip:hover { background: var(--bg-soft); }
+  .chip.active {
+    background: var(--ink);
+    color: #ffffff;
+  }
+  .chip-count {
+    font-weight: 500;
+    opacity: 0.65;
+    margin-left: 4px;
+  }
+  .results-info {
+    margin-left: auto;
+    font-size: 12px;
+    color: var(--ink-soft);
+    font-weight: 500;
+  }
+
+  /* TABLE */
+  .table-wrap {
+    overflow-x: auto;
+    background: var(--panel);
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+    table-layout: auto;
+  }
+  thead {
+    background: var(--bg-soft);
+    border-bottom: 2px solid var(--ink);
+  }
+  th {
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 700;
+    color: var(--ink);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    position: sticky;
+    top: 0;
+    background: var(--bg-soft);
+  }
+  th:hover { background: var(--panel-soft); }
+  th.sorted::after {
+    content: ' \25BC';
+    font-size: 8px;
+    margin-left: 4px;
+    opacity: 0.7;
+  }
+  th.sorted.asc::after { content: ' \25B2'; }
+  th:not(.col-sort) { cursor: default; }
+  th:not(.col-sort):hover { background: var(--bg-soft); }
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--rule);
+    vertical-align: top;
+    color: var(--ink-deep);
+  }
+  tr:hover td { background: var(--bg-soft); }
+
+  .school-name-cell {
+    font-weight: 600;
+  }
+  .district-num {
+    display: inline-block;
+    padding: 1px 6px;
+    background: var(--panel-soft);
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--ink);
+    margin-right: 2px;
+  }
+  .rep-name {
+    font-size: 12px;
+  }
+  .rep-party {
+    display: inline-block;
+    margin-left: 4px;
+    padding: 1px 5px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 700;
+    color: white;
+    vertical-align: middle;
+  }
+  .rep-party.R { background: var(--R); }
+  .rep-party.D { background: var(--D); }
+  .rep-party.I { background: var(--I); }
+
+  .status-yes {
+    display: inline-block;
+    color: var(--good);
+    background: var(--good-soft);
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .status-no {
+    display: inline-block;
+    color: var(--ink-soft);
+    background: var(--bg-soft);
+    border: 1px solid var(--rule);
+    padding: 2px 9px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+  }
+
+  .links-cell {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    align-items: center;
+  }
+  .links-cell a {
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  .link-current.has-sheet {
+    color: var(--good);
+    background: var(--good-soft);
+  }
+  .link-current.request {
+    color: var(--ink-deep);
+    background: var(--accent);
+    border: 1px solid var(--accent-deep);
+  }
+  .link-prev {
+    color: var(--ink-soft);
+    background: transparent;
+    border: 1px solid var(--rule);
+    font-weight: 600;
+    font-size: 10px;
+    padding: 2px 7px;
+  }
+  .link-prev:hover { color: var(--ink-deep); border-color: var(--ink); }
+  .link-empty { color: var(--ink-soft); opacity: 0.4; font-size: 10px; }
+
+  .loading-cell {
+    text-align: center;
+    padding: 40px;
+    color: var(--ink-soft);
+    font-style: italic;
+  }
+  .empty-cell {
+    text-align: center;
+    padding: 40px;
+    color: var(--ink-soft);
+    font-weight: 500;
+  }
+
+  /* MOBILE — convert table to cards */
+  @media (max-width: 720px), (pointer: coarse) and (max-width: 1024px) {
+    header { padding: 12px 16px; }
+    header h1 { font-size: 18px; }
+    .header-nav { flex: 1 1 100%; }
+
+    .dashboard-wrap { padding: 16px; }
+    .dashboard { grid-template-columns: 1fr; gap: 12px; }
+    .stats-num { font-size: 36px; }
+
+    .filter-bar {
+      padding: 10px 16px;
+      gap: 8px;
+      position: static;
+    }
+    .filter-bar input {
+      flex: 1 1 100%;
+      max-width: none;
+      font-size: 16px; /* prevent iOS auto-zoom */
+    }
+    .results-info {
+      flex: 1 1 100%;
+      margin-left: 0;
+      text-align: center;
+    }
+
+    .table-wrap { padding: 12px; }
+    table, thead, tbody, tr, th, td { display: block; }
+    thead { display: none; }
+    tr {
+      background: var(--panel);
+      border: 1px solid var(--rule);
+      border-radius: 8px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+    }
+    tr:hover td { background: transparent; }
+    td {
+      padding: 4px 0;
+      font-size: 13px;
+      border-bottom: none;
+    }
+    td.school-name-cell {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--ink);
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--rule);
+      margin-bottom: 6px;
+    }
+    td:not(.school-name-cell):not(.links-cell-td)::before {
+      content: attr(data-label) ': ';
+      font-weight: 700;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--ink-soft);
+      margin-right: 4px;
+    }
+    td.links-cell-td {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--rule);
+    }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Ohio Voucher Tracker</h1>
+  <div class="header-nav">
+    <a href="index.html" class="nav-link">Map view</a>
+    <a href="tracker.html" class="nav-link active" aria-current="page">Tracker</a>
+    <a href="https://docs.google.com/spreadsheets/d/1YVpK9Aewh0h6eNjhf_e8EVXdzRPilLLTiBGw0qbLh3o/edit?usp=sharing"
+       class="tracker-link" target="_blank" rel="noopener">Open spreadsheet &#8599;</a>
+  </div>
+</header>
+
+<div class="dashboard-wrap">
+  <div class="dashboard" id="dashboard">
+    <div>
+      <div class="stats-num" id="stats-num">&hellip;</div>
+      <div class="stats-label">school districts have a current fact sheet</div>
+    </div>
+    <div class="stats-meta">
+      <div class="stats-progress"><div class="stats-progress-bar" id="stats-bar" style="width:0%"></div></div>
+      <div class="stats-detail">
+        <span class="stats-good" id="stats-good">Loading&hellip;</span>
+        <span class="stats-missing" id="stats-missing"></span>
+      </div>
+      <div class="stats-updated" id="stats-updated"></div>
+    </div>
+  </div>
+</div>
+
+<div class="filter-bar">
+  <input id="filter" type="text" placeholder="Filter by school, county, rep, district&hellip;" autocomplete="off">
+  <div class="filter-chips">
+    <button class="chip active" data-preset="all">All <span class="chip-count" id="count-all"></span></button>
+    <button class="chip" data-preset="has">Has fact sheet <span class="chip-count" id="count-has"></span></button>
+    <button class="chip" data-preset="missing">Missing <span class="chip-count" id="count-missing"></span></button>
+  </div>
+  <div class="results-info" id="results-info"></div>
+</div>
+
+<div class="table-wrap">
+  <table id="t">
+    <thead>
+      <tr>
+        <th class="col-sort" data-sort="irn">IRN</th>
+        <th class="col-sort sorted asc" data-sort="name">School District</th>
+        <th class="col-sort" data-sort="county">County</th>
+        <th class="col-sort" data-sort="hd">HD</th>
+        <th class="col-sort" data-sort="hreps">House Rep</th>
+        <th class="col-sort" data-sort="sd">SD</th>
+        <th class="col-sort" data-sort="sreps">Senator</th>
+        <th class="col-sort" data-sort="status">Status</th>
+        <th>Versions</th>
+      </tr>
+    </thead>
+    <tbody id="t-body">
+      <tr><td colspan="9" class="loading-cell">Loading school districts&hellip;</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<script>
+// =============================================================================
+// CONFIG — paste your Apps Script Web App URL between the quotes below
+// =============================================================================
+const TRACKER_API_URL = 'PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE';
+const REQUEST_FORM_URL = 'https://bit.ly/vouchlocalfacts';
+
+// =============================================================================
+// STATE
+// =============================================================================
+const state = {
+  districts: [],
+  filter: '',
+  preset: 'all',
+  sortBy: 'name',
+  sortDir: 'asc',
+};
+
+// =============================================================================
+// DATA LOAD
+// =============================================================================
+async function loadData() {
+  if (TRACKER_API_URL.startsWith('PASTE_')) {
+    showError('Tracker API URL not configured. Edit tracker.html and paste your Apps Script Web App URL.');
+    return;
+  }
+  try {
+    const res = await fetch(TRACKER_API_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    if (data.error) throw new Error(data.error);
+    state.districts = data.districts || [];
+    renderDashboard(data);
+    updateChipCounts();
+    renderTable();
+  } catch (err) {
+    showError('Failed to load tracker data: ' + err.message);
+  }
+}
+
+function showError(msg) {
+  document.getElementById('t-body').innerHTML =
+    '<tr><td colspan="9" class="empty-cell">' + escapeHtml(msg) + '</td></tr>';
+  document.getElementById('stats-num').textContent = '—';
+  document.getElementById('stats-good').textContent = 'Error';
+}
+
+// =============================================================================
+// STATS
+// =============================================================================
+function computeStats(districts) {
+  const total = districts.length;
+  const withFS = districts.filter(d => d.hasFactSheet).length;
+  const missing = total - withFS;
+  const pct = total > 0 ? Math.round((withFS / total) * 100) : 0;
+  return { total, withFS, missing, pct };
+}
+
+function renderDashboard(data) {
+  const stats = computeStats(state.districts);
+  document.getElementById('stats-num').innerHTML =
+    stats.withFS + '<span class="stats-num-total">/' + stats.total + '</span>';
+  document.getElementById('stats-bar').style.width = stats.pct + '%';
+  document.getElementById('stats-good').textContent = stats.pct + '% covered';
+  document.getElementById('stats-missing').textContent =
+    stats.missing + ' still need a fact sheet';
+  if (data.generated) {
+    const ts = new Date(data.generated).toLocaleString();
+    document.getElementById('stats-updated').textContent = 'Updated ' + ts;
+  }
+}
+
+function updateChipCounts() {
+  const stats = computeStats(state.districts);
+  document.getElementById('count-all').textContent = '(' + stats.total + ')';
+  document.getElementById('count-has').textContent = '(' + stats.withFS + ')';
+  document.getElementById('count-missing').textContent = '(' + stats.missing + ')';
+}
+
+// =============================================================================
+// FILTER + SORT
+// =============================================================================
+function applyFiltersAndSort() {
+  let rows = state.districts.slice();
+
+  if (state.preset === 'has') rows = rows.filter(d => d.hasFactSheet);
+  else if (state.preset === 'missing') rows = rows.filter(d => !d.hasFactSheet);
+
+  const q = state.filter.toLowerCase().trim();
+  if (q) {
+    rows = rows.filter(d => {
+      if (d.name && d.name.toLowerCase().includes(q)) return true;
+      if (d.county && d.county.toLowerCase().includes(q)) return true;
+      if (d.irn && d.irn.toLowerCase().includes(q)) return true;
+      if (d.houseReps && d.houseReps.some(r => r.toLowerCase().includes(q))) return true;
+      if (d.senators && d.senators.some(r => r.toLowerCase().includes(q))) return true;
+      if (d.houseDistricts && d.houseDistricts.some(n => String(n) === q)) return true;
+      if (d.senateDistricts && d.senateDistricts.some(n => String(n) === q)) return true;
+      return false;
+    });
+  }
+
+  const dir = state.sortDir === 'asc' ? 1 : -1;
+  rows.sort((a, b) => {
+    const av = sortValue(a, state.sortBy);
+    const bv = sortValue(b, state.sortBy);
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return 0;
+  });
+
+  return rows;
+}
+
+function sortValue(d, col) {
+  switch (col) {
+    case 'irn':    return d.irn || '';
+    case 'name':   return (d.name || '').toLowerCase();
+    case 'county': return (d.county || '').toLowerCase();
+    case 'hd':     return d.houseDistricts && d.houseDistricts.length ? d.houseDistricts[0] : 9999;
+    case 'sd':     return d.senateDistricts && d.senateDistricts.length ? d.senateDistricts[0] : 9999;
+    case 'hreps':  return (d.houseReps || []).join(', ').toLowerCase();
+    case 'sreps':  return (d.senators || []).join(', ').toLowerCase();
+    case 'status': return d.hasFactSheet ? 1 : 0;
+    default: return '';
+  }
+}
+
+// =============================================================================
+// RENDER TABLE
+// =============================================================================
+function renderTable() {
+  const tbody = document.getElementById('t-body');
+  const rows = applyFiltersAndSort();
+  document.getElementById('results-info').textContent =
+    'Showing ' + rows.length + ' of ' + state.districts.length + ' districts';
+
+  // Sync header sort indicators
+  document.querySelectorAll('th.col-sort').forEach(th => {
+    th.classList.remove('sorted', 'asc');
+    if (th.dataset.sort === state.sortBy) {
+      th.classList.add('sorted');
+      if (state.sortDir === 'asc') th.classList.add('asc');
+    }
+  });
+
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-cell">No matches</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = rows.map(d => {
+    const status = d.hasFactSheet
+      ? '<span class="status-yes">\u2713 Have it</span>'
+      : '<span class="status-no">Need it</span>';
+
+    const current = d.hasFactSheet && d.factSheetUrl
+      ? '<a class="link-current has-sheet" href="' + escapeAttr(d.factSheetUrl) + '" target="_blank" rel="noopener">View &#10003;</a>'
+      : '<a class="link-current request" href="' + escapeAttr(REQUEST_FORM_URL) + '" target="_blank" rel="noopener">Request</a>';
+    const v2425 = d.factSheet2425Url
+      ? '<a class="link-prev" href="' + escapeAttr(d.factSheet2425Url) + '" target="_blank" rel="noopener" title="2024-25 version">24-25</a>'
+      : '<span class="link-empty">24-25</span>';
+    const v2324 = d.factSheet2324Url
+      ? '<a class="link-prev" href="' + escapeAttr(d.factSheet2324Url) + '" target="_blank" rel="noopener" title="2023-24 version">23-24</a>'
+      : '<span class="link-empty">23-24</span>';
+
+    const hdNums = (d.houseDistricts || []).map(n =>
+      '<span class="district-num">' + n + '</span>').join(' ');
+    const sdNums = (d.senateDistricts || []).map(n =>
+      '<span class="district-num">' + n + '</span>').join(' ');
+    const hreps = (d.houseReps || []).map(r => '<span class="rep-name">' + escapeHtml(r) + '</span>').join('<br>');
+    const sreps = (d.senators || []).map(r => '<span class="rep-name">' + escapeHtml(r) + '</span>').join('<br>');
+
+    return '<tr>'
+      + '<td data-label="IRN">' + escapeHtml(d.irn || '') + '</td>'
+      + '<td class="school-name-cell" data-label="School">' + escapeHtml(d.name || '') + '</td>'
+      + '<td data-label="County">' + escapeHtml(d.county || '') + '</td>'
+      + '<td data-label="HD">' + hdNums + '</td>'
+      + '<td data-label="House Rep">' + hreps + '</td>'
+      + '<td data-label="SD">' + sdNums + '</td>'
+      + '<td data-label="Senator">' + sreps + '</td>'
+      + '<td data-label="Status">' + status + '</td>'
+      + '<td class="links-cell-td"><div class="links-cell">' + current + v2425 + v2324 + '</div></td>'
+      + '</tr>';
+  }).join('');
+}
+
+// =============================================================================
+// EVENTS
+// =============================================================================
+document.getElementById('filter').addEventListener('input', (e) => {
+  state.filter = e.target.value;
+  renderTable();
+});
+
+document.querySelectorAll('.chip').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.chip').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    state.preset = btn.dataset.preset;
+    renderTable();
+  });
+});
+
+document.querySelectorAll('th.col-sort').forEach(th => {
+  th.addEventListener('click', () => {
+    const col = th.dataset.sort;
+    if (state.sortBy === col) {
+      state.sortDir = state.sortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      state.sortBy = col;
+      state.sortDir = 'asc';
+    }
+    renderTable();
+  });
+});
+
+// =============================================================================
+// UTILS
+// =============================================================================
+function escapeHtml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+function escapeAttr(s) { return escapeHtml(s); }
+
+// Boot
+loadData();
+</script>
+</body>
+</html>

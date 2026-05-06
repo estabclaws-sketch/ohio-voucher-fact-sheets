@@ -77,6 +77,26 @@
     font-weight: 500;
   }
 
+  .header-right {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+  }
+
+  .tracker-link {
+    background: var(--accent);
+    color: var(--ink-deep);
+    text-decoration: none;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: 700;
+    border: 1px solid var(--accent-deep);
+    white-space: nowrap;
+    align-self: center;
+  }
+  .tracker-link:hover { background: #e8b833; }
+
   .controls {
     background: var(--bg-soft);
     padding: 10px 24px;
@@ -228,6 +248,36 @@
     font-size: 12px;
     font-weight: 500;
   }
+  .search-group-header {
+    padding: 8px 12px 4px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    background: var(--bg-soft);
+    border-top: 1px solid var(--rule);
+  }
+  .search-group-header:first-child { border-top: none; }
+  .search-result-rep-name {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--ink-deep);
+    line-height: 1.25;
+  }
+  .search-result-party-tag {
+    display: inline-block;
+    margin-left: 6px;
+    padding: 1px 6px;
+    border-radius: 999px;
+    font-size: 9px;
+    font-weight: 700;
+    color: white;
+    vertical-align: middle;
+  }
+  .search-result-party-tag.R { background: var(--R); }
+  .search-result-party-tag.D { background: var(--D); }
+  .search-result-party-tag.I { background: var(--I); }
 
   .container {
     display: flex;
@@ -265,6 +315,66 @@
     color: var(--ink);
     margin: 0 0 12px;
   }
+
+  .stats-dashboard {
+    padding: 24px 22px 18px;
+    border-bottom: 1px solid var(--rule);
+    background: var(--panel-soft);
+  }
+  .stats-num {
+    font-size: 40px;
+    font-weight: 800;
+    color: var(--ink);
+    line-height: 1;
+    letter-spacing: -0.02em;
+  }
+  .stats-num-total {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--ink-soft);
+  }
+  .stats-label {
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-top: 6px;
+    margin-bottom: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    line-height: 1.4;
+  }
+  .stats-progress {
+    height: 10px;
+    background: var(--bg-soft);
+    border-radius: 5px;
+    overflow: hidden;
+    border: 1px solid var(--rule);
+  }
+  .stats-progress-bar {
+    height: 100%;
+    background: var(--good);
+    transition: width 0.5s ease-out;
+  }
+  .stats-detail {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 8px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .stats-detail .stats-good { color: var(--good); }
+  .stats-detail .stats-missing { color: var(--ink-soft); }
+  .stats-link {
+    display: inline-block;
+    margin-top: 14px;
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--ink);
+    text-decoration: none;
+    border-bottom: 2px solid var(--accent);
+    padding-bottom: 1px;
+  }
+  .stats-link:hover { color: var(--accent-deep); }
 
   .panel-header {
     background: var(--ink);
@@ -371,7 +481,10 @@
     grid-row: 1 / 3;
     grid-column: 2;
     align-self: center;
-    text-align: right;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    align-items: flex-end;
   }
 
   .school-action a {
@@ -401,6 +514,20 @@
 
   .school-action a.request:hover {
     background: #e8b833;
+  }
+
+  .school-action a.prev-version {
+    color: var(--ink-soft);
+    background: transparent;
+    border: 1px solid var(--rule);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+  }
+  .school-action a.prev-version:hover {
+    color: var(--ink-deep);
+    border-color: var(--ink);
+    background: var(--bg-soft);
   }
 
   .panel-footer {
@@ -453,6 +580,8 @@
     header { padding: 12px 16px; }
     header h1 { font-size: 18px; }
     header .meta { display: none !important; }
+    .header-right { gap: 0; }
+    .tracker-link { padding: 5px 10px; font-size: 11px; }
 
     .controls { padding: 8px 12px; gap: 8px; }
     .toggle-group button { padding: 7px 10px; font-size: 12px; }
@@ -535,7 +664,10 @@
 
 <header>
   <h1>Ohio Voucher Fact Sheets</h1>
-  <span class="meta">Live data · Click a district or county to see schools</span>
+  <div class="header-right">
+    <span class="meta">Live data · Click a district or county to see schools</span>
+    <a class="tracker-link" href="https://docs.google.com/spreadsheets/d/1YVpK9Aewh0h6eNjhf_e8EVXdzRPilLLTiBGw0qbLh3o/edit?usp=sharing" target="_blank" rel="noopener">Open tracker &#8599;</a>
+  </div>
 </header>
 
 <div class="controls">
@@ -628,12 +760,21 @@ function setStatus(text, kind) {
   el.className = 'status-pill ' + (kind || '');
 }
 
-function setStatusOk(count, generated) {
+function setStatusOk(stats, generated) {
   const el = document.getElementById('status');
   const ts = generated ? new Date(generated).toLocaleString() : '';
-  el.innerHTML = '\u2713 ' + count + ' schools loaded'
+  el.innerHTML = '\u2713 ' + stats.withFS + '/' + stats.total + ' have a fact sheet (' + stats.pct + '%)'
     + (ts ? '<span class="timestamp"> \u00b7 updated ' + ts + '</span>' : '');
   el.className = 'status-pill ok';
+}
+
+function computeStats(data) {
+  const districts = (data && data.districts) || [];
+  const total = districts.length;
+  const withFS = districts.filter(d => d.hasFactSheet).length;
+  const missing = total - withFS;
+  const pct = total > 0 ? Math.round((withFS / total) * 100) : 0;
+  return { total, withFS, missing, pct };
 }
 
 // ============================================================================
@@ -686,22 +827,10 @@ function closePanel() {
   }
 }
 
-function renderChamber(chamber) {
-  // Hide other layers
-  ['house', 'senate', 'county'].forEach(c => {
-    if (c !== chamber && state.geoLayers[c]) {
-      map.removeLayer(state.geoLayers[c]);
-    }
-  });
-
-  if (state.geoLayers[chamber]) {
-    state.geoLayers[chamber].addTo(map);
-    return;
-  }
-
+function ensureLayer(chamber) {
+  if (state.geoLayers[chamber]) return state.geoLayers[chamber];
   const geo = state.staticGeo[chamber];
-  if (!geo) return;
-
+  if (!geo) return null;
   const layer = L.geoJSON(geo, {
     style: feat => styleForFeature(feat, false),
     onEachFeature: (feat, lyr) => {
@@ -733,9 +862,20 @@ function renderChamber(chamber) {
         lyr.setStyle(styleForFeature(feat, false));
       });
     },
-  }).addTo(map);
-
+  });
   state.geoLayers[chamber] = layer;
+  return layer;
+}
+
+function renderChamber(chamber) {
+  // Hide other layers
+  ['house', 'senate', 'county'].forEach(c => {
+    if (c !== chamber && state.geoLayers[c] && map.hasLayer(state.geoLayers[c])) {
+      map.removeLayer(state.geoLayers[c]);
+    }
+  });
+  const layer = ensureLayer(chamber);
+  if (layer && !map.hasLayer(layer)) layer.addTo(map);
 }
 
 // ============================================================================
@@ -837,9 +977,15 @@ function renderCountyPanel(feature) {
 }
 
 function renderSchoolItem(school, mode) {
-  const action = school.hasFactSheet && school.factSheetUrl
-    ? `<a class="has-sheet" href="${escapeAttr(school.factSheetUrl)}" target="_blank" rel="noopener">View ✓</a>`
+  const primary = school.hasFactSheet && school.factSheetUrl
+    ? `<a class="has-sheet" href="${escapeAttr(school.factSheetUrl)}" target="_blank" rel="noopener">View &#10003;</a>`
     : `<a class="request" href="${escapeAttr(REQUEST_FORM_URL)}" target="_blank" rel="noopener">Request</a>`;
+  const prev2425 = school.factSheet2425Url
+    ? `<a class="prev-version" href="${escapeAttr(school.factSheet2425Url)}" target="_blank" rel="noopener" title="2024-25 version">24-25</a>`
+    : '';
+  const prev2324 = school.factSheet2324Url
+    ? `<a class="prev-version" href="${escapeAttr(school.factSheet2324Url)}" target="_blank" rel="noopener" title="2023-24 version">23-24</a>`
+    : '';
 
   let subtitle;
   if (mode === 'county') {
@@ -854,7 +1000,7 @@ function renderSchoolItem(school, mode) {
     <li class="school-item">
       <div class="school-name">${escapeHtml(school.name)}</div>
       <div class="school-county">${escapeHtml(subtitle)}</div>
-      <div class="school-action">${action}</div>
+      <div class="school-action">${primary}${prev2425}${prev2324}</div>
     </li>
   `;
 }
@@ -973,16 +1119,7 @@ function switchTo(chamber) {
   state.selectedFeature = null;
   renderChamber(chamber);
   document.getElementById('panel').classList.remove('shown');
-  const promptText = chamber === 'county'
-    ? 'Click a county to see all schools in it and which legislators represent them.'
-    : 'Select any colored district on the map to see the legislator\'s schools and fact sheet status.';
-  const heading = chamber === 'county' ? 'Click a county' : 'Click a district';
-  document.getElementById('panel').innerHTML = `
-    <div class="panel-empty">
-      <h2>${heading}</h2>
-      <p>${promptText}</p>
-    </div>
-  `;
+  renderPanelEmpty();
 }
 
 document.getElementById('btn-house').addEventListener('click', () => switchTo('house'));
@@ -1001,41 +1138,225 @@ function escapeHtml(s) {
 
 function escapeAttr(s) { return escapeHtml(s); }
 
+function renderPanelEmpty() {
+  const stats = state.trackerData ? computeStats(state.trackerData) : null;
+  const heading = state.chamber === 'county' ? 'Click a county' : 'Click a district';
+  const promptText = state.chamber === 'county'
+    ? 'Select any county on the map to see all schools in it and which legislators represent them.'
+    : 'Select any colored district on the map to see the legislator\'s schools and fact sheet status.';
+
+  let dashboardHtml = '';
+  if (stats) {
+    dashboardHtml = `
+      <div class="stats-dashboard">
+        <div class="stats-num">${stats.withFS}<span class="stats-num-total">/${stats.total}</span></div>
+        <div class="stats-label">school districts have a current fact sheet</div>
+        <div class="stats-progress"><div class="stats-progress-bar" style="width:${stats.pct}%"></div></div>
+        <div class="stats-detail">
+          <span class="stats-good">${stats.pct}% covered</span>
+          <span class="stats-missing">${stats.missing} still need one</span>
+        </div>
+        <a class="stats-link" href="tracker.html">See full database →</a>
+      </div>
+    `;
+  }
+
+  document.getElementById('panel').innerHTML = `
+    ${dashboardHtml}
+    <div class="panel-empty">
+      <h2>${heading}</h2>
+      <p>${promptText}</p>
+    </div>
+  `;
+}
+
 function renderSearchResults(q) {
   const dropdown = document.getElementById('search-results');
-  if (!q || !state.trackerData) {
+  if (!q) {
     dropdown.hidden = true;
     dropdown.innerHTML = '';
     return;
   }
-  const matches = state.trackerData.districts
-    .filter(d => d.name.toLowerCase().includes(q))
-    .sort((a, b) => {
-      // Prioritize matches that start with the query
-      const aStarts = a.name.toLowerCase().startsWith(q);
-      const bStarts = b.name.toLowerCase().startsWith(q);
-      if (aStarts !== bStarts) return aStarts ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    })
-    .slice(0, 8);
-  if (matches.length === 0) {
-    dropdown.innerHTML = '<div class="search-result-empty">No matching school districts</div>';
+
+  const num = parseInt(q, 10);
+  const isNum = !isNaN(num) && /^\d+$/.test(q);
+
+  const groups = {
+    'House Districts': [],
+    'Senate Districts': [],
+    'Legislators': [],
+    'Counties': [],
+    'School Districts': [],
+  };
+
+  // House districts (number match) + house reps (name match)
+  for (const dist in state.layersByDistrict.house) {
+    const e = state.layersByDistrict.house[dist];
+    const p = e.feature.properties;
+    if (isNum && p.district === num) {
+      groups['House Districts'].push({
+        kind: 'house-dist', district: num, entry: e
+      });
+    }
+    const fullName = ((p.first || '') + ' ' + (p.last || '')).trim();
+    if (fullName && fullName.toLowerCase().includes(q)) {
+      groups['Legislators'].push({
+        kind: 'house-rep',
+        name: fullName, party: p.party, district: p.district, entry: e,
+        starts: fullName.toLowerCase().startsWith(q),
+      });
+    }
+  }
+  // Senate districts + senators
+  for (const dist in state.layersByDistrict.senate) {
+    const e = state.layersByDistrict.senate[dist];
+    const p = e.feature.properties;
+    if (isNum && p.district === num) {
+      groups['Senate Districts'].push({
+        kind: 'senate-dist', district: num, entry: e
+      });
+    }
+    const fullName = ((p.first || '') + ' ' + (p.last || '')).trim();
+    if (fullName && fullName.toLowerCase().includes(q)) {
+      groups['Legislators'].push({
+        kind: 'senate-rep',
+        name: fullName, party: p.party, district: p.district, entry: e,
+        starts: fullName.toLowerCase().startsWith(q),
+      });
+    }
+  }
+  // Counties
+  for (const cKey in state.layersByDistrict.county) {
+    if (cKey.includes(q)) {
+      const e = state.layersByDistrict.county[cKey];
+      groups['Counties'].push({
+        kind: 'county', name: e.feature.properties.name, entry: e,
+        starts: cKey.startsWith(q),
+      });
+    }
+  }
+  // Schools
+  if (state.trackerData) {
+    for (const d of state.trackerData.districts) {
+      if (d.name.toLowerCase().includes(q)) {
+        groups['School Districts'].push({
+          kind: 'school', school: d,
+          starts: d.name.toLowerCase().startsWith(q),
+        });
+      }
+    }
+  }
+
+  // Sort within each group: starts-with first, then alphabetical
+  for (const k in groups) {
+    groups[k].sort((a, b) => {
+      if (a.starts !== b.starts) return a.starts ? -1 : 1;
+      const aName = a.name || (a.school && a.school.name) || ('' + (a.district || ''));
+      const bName = b.name || (b.school && b.school.name) || ('' + (b.district || ''));
+      return aName.localeCompare(bName);
+    });
+  }
+
+  // Cap each group at a reasonable count and total at 12
+  const TOTAL_MAX = 12;
+  const PER_GROUP_MAX = 6;
+  let total = 0;
+  const finalGroups = {};
+  for (const k of Object.keys(groups)) {
+    const items = groups[k].slice(0, PER_GROUP_MAX);
+    if (items.length === 0) continue;
+    const remaining = TOTAL_MAX - total;
+    if (remaining <= 0) break;
+    finalGroups[k] = items.slice(0, remaining);
+    total += finalGroups[k].length;
+  }
+
+  if (total === 0) {
+    dropdown.innerHTML = '<div class="search-result-empty">No matches</div>';
     dropdown.hidden = false;
     return;
   }
-  dropdown.innerHTML = matches.map(d => {
+
+  const html = Object.entries(finalGroups).map(([groupName, items]) => {
+    const rows = items.map(item => renderSearchRow(item)).join('');
+    return `<div class="search-group-header">${escapeHtml(groupName)}</div>${rows}`;
+  }).join('');
+  dropdown.innerHTML = html;
+  dropdown.hidden = false;
+}
+
+function renderSearchRow(item) {
+  if (item.kind === 'house-dist') {
+    const p = item.entry.feature.properties;
+    const fullName = ((p.first || '') + ' ' + (p.last || '')).trim();
+    const partyTag = p.party ? ` <span class="search-result-party-tag ${p.party}">${escapeHtml(p.party)}</span>` : '';
+    return `<div class="search-result" onclick="jumpToLegislator('house', ${p.district})">
+      <div class="search-result-rep-name">HD ${p.district}${partyTag}</div>
+      <div class="search-result-meta">${escapeHtml(fullName)}</div>
+    </div>`;
+  }
+  if (item.kind === 'senate-dist') {
+    const p = item.entry.feature.properties;
+    const fullName = ((p.first || '') + ' ' + (p.last || '')).trim();
+    const partyTag = p.party ? ` <span class="search-result-party-tag ${p.party}">${escapeHtml(p.party)}</span>` : '';
+    return `<div class="search-result" onclick="jumpToLegislator('senate', ${p.district})">
+      <div class="search-result-rep-name">SD ${p.district}${partyTag}</div>
+      <div class="search-result-meta">${escapeHtml(fullName)}</div>
+    </div>`;
+  }
+  if (item.kind === 'house-rep' || item.kind === 'senate-rep') {
+    const chamber = item.kind === 'house-rep' ? 'house' : 'senate';
+    const prefix = chamber === 'house' ? 'HD' : 'SD';
+    const partyTag = item.party ? ` <span class="search-result-party-tag ${item.party}">${escapeHtml(item.party)}</span>` : '';
+    return `<div class="search-result" onclick="jumpToLegislator('${chamber}', ${item.district})">
+      <div class="search-result-rep-name">${escapeHtml(item.name)}${partyTag}</div>
+      <div class="search-result-meta">${prefix} ${item.district}</div>
+    </div>`;
+  }
+  if (item.kind === 'county') {
+    return `<div class="search-result" onclick="jumpToCounty('${escapeAttr(item.name.toLowerCase())}')">
+      <div class="search-result-rep-name">${escapeHtml(item.name)} County</div>
+    </div>`;
+  }
+  if (item.kind === 'school') {
+    const d = item.school;
     const action = d.hasFactSheet && d.factSheetUrl
       ? `<a class="has-sheet" href="${escapeAttr(d.factSheetUrl)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">View &#10003;</a>`
       : `<a class="request" href="${escapeAttr(REQUEST_FORM_URL)}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Request</a>`;
-    return `
-      <div class="search-result" onclick="jumpToSchool('${escapeAttr(d.irn)}')">
-        <div class="search-result-name">${escapeHtml(d.name)}</div>
-        <div class="search-result-meta">${escapeHtml(d.county || '')}</div>
-        <div class="search-result-action">${action}</div>
-      </div>
-    `;
-  }).join('');
-  dropdown.hidden = false;
+    return `<div class="search-result" onclick="jumpToSchool('${escapeAttr(d.irn)}')">
+      <div class="search-result-name">${escapeHtml(d.name)}</div>
+      <div class="search-result-meta">${escapeHtml(d.county || '')}</div>
+      <div class="search-result-action">${action}</div>
+    </div>`;
+  }
+  return '';
+}
+
+function jumpToLegislator(chamber, district) {
+  if (state.chamber !== chamber) switchTo(chamber);
+  // Wait for chamber render before selecting
+  setTimeout(() => {
+    const entry = state.layersByDistrict[chamber][district];
+    if (entry) {
+      map.fitBounds(entry.layer.getBounds(), { padding: [40, 40] });
+      selectFeature(entry.layer, entry.feature);
+    }
+  }, 30);
+  document.getElementById('search-results').hidden = true;
+  document.getElementById('search').blur();
+}
+
+function jumpToCounty(countyKey) {
+  if (state.chamber !== 'county') switchTo('county');
+  setTimeout(() => {
+    const entry = state.layersByDistrict.county[countyKey];
+    if (entry) {
+      map.fitBounds(entry.layer.getBounds(), { padding: [40, 40] });
+      selectFeature(entry.layer, entry.feature);
+    }
+  }, 30);
+  document.getElementById('search-results').hidden = true;
+  document.getElementById('search').blur();
 }
 
 function jumpToSchool(irn) {
@@ -1153,11 +1474,18 @@ initSwipeToDismiss();
   try {
     setStatus('Loading map…', 'loading');
     state.staticGeo = await loadStaticGeo();
+    // Build all chamber layers so search can find counties and senate items
+    // even while the user is in another chamber. Only the active one is added to the map.
+    ensureLayer('house');
+    ensureLayer('senate');
+    ensureLayer('county');
     renderChamber('house');
     setStatus('Loading school data…', 'loading');
     try {
       state.trackerData = await loadTrackerData();
-      setStatusOk(state.trackerData.count, state.trackerData.generated);
+      const stats = computeStats(state.trackerData);
+      setStatusOk(stats, state.trackerData.generated);
+      renderPanelEmpty();
     } catch (apiErr) {
       console.error(apiErr);
       setStatus('Map loaded · school data unavailable', 'error');
