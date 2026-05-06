@@ -646,7 +646,7 @@ function renderTable() {
       : '<span class="status-no">Need it</span>';
 
     const current = d.hasFactSheet && d.factSheetUrl
-      ? '<a class="link-current has-sheet" href="' + escapeAttr(d.factSheetUrl) + '" target="_blank" rel="noopener">View Current Version</a>'
+      ? '<a class="link-current has-sheet" href="' + escapeAttr(d.factSheetUrl) + '" target="_blank" rel="noopener">View Current</a>'
       : '<a class="link-current request" href="' + escapeAttr(REQUEST_FORM_URL) + '" target="_blank" rel="noopener">Request</a>';
     const v2425 = d.factSheet2425Url
       ? '<a class="link-prev" href="' + escapeAttr(d.factSheet2425Url) + '" target="_blank" rel="noopener" title="2024-25 version">24-25</a>'
