@@ -347,6 +347,27 @@
   }
   .link-prev:hover { color: var(--ink-deep); border-color: var(--ink); }
   .link-empty { color: var(--ink-soft); opacity: 0.4; font-size: 10px; }
+  .copy-link {
+    background: transparent;
+    border: 1px dashed var(--rule);
+    color: var(--ink-soft);
+    font-family: inherit;
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 3px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .copy-link:hover { color: var(--ink-deep); border-color: var(--ink); }
+  .copy-link.copied { color: var(--good); border-color: var(--good); border-style: solid; }
+  .status-defunct {
+    display: inline-block;
+    color: var(--ink-soft);
+    font-style: italic;
+    font-size: 11px;
+    font-weight: 600;
+  }
 
   .loading-cell {
     text-align: center;
@@ -494,7 +515,19 @@
 // CONFIG — paste your Apps Script Web App URL between the quotes below
 // =============================================================================
 const TRACKER_API_URL = 'https://script.google.com/macros/s/AKfycbxrpFkErFLv2xUElXnaf1T_9lGdYy7XNsZqKPbpVMFaIMxN2ogRbhUcmSqeMzvsTIDW/exec';
-const REQUEST_FORM_URL = 'https://bit.ly/vouchlocalfacts';
+
+// Label shown on the main "View" button — change once a year.
+const CURRENT_YEAR_LABEL = '25-26';
+
+// Districts that exist on paper only. Left out of the totals.
+const DEFUNCT_IRNS = ['048959', '048967']; // Middle Bass, North Bass
+
+function irn6(irn) { return String(irn == null ? '' : irn).replace(/\D/g, '').padStart(6, '0'); }
+function isDefunct(d) { return !!d.defunct || DEFUNCT_IRNS.indexOf(irn6(d.irn)) !== -1; }
+function currentUrl(d) { return d.factSheet2526Url || d.factSheetUrl || ''; }
+function hasCurrent(d) { return !isDefunct(d) && !!currentUrl(d); }
+function viewLabel(d) { return d.factSheet2526Url ? 'View ' + CURRENT_YEAR_LABEL : 'View current'; }
+function stableLink(irn) { return new URL('factsheet.html?irn=' + irn6(irn), location.href).href; }
 
 // =============================================================================
 // STATE
@@ -540,8 +573,9 @@ function showError(msg) {
 // STATS
 // =============================================================================
 function computeStats(districts) {
-  const total = districts.length;
-  const withFS = districts.filter(d => d.hasFactSheet).length;
+  const active = districts.filter(d => !isDefunct(d));
+  const total = active.length;
+  const withFS = active.filter(hasCurrent).length;
   const missing = total - withFS;
   const pct = total > 0 ? Math.round((withFS / total) * 100) : 0;
   return { total, withFS, missing, pct };
@@ -554,7 +588,7 @@ function renderDashboard(data) {
   document.getElementById('stats-bar').style.width = stats.pct + '%';
   document.getElementById('stats-good').textContent = stats.pct + '% covered';
   document.getElementById('stats-missing').textContent =
-    stats.missing + ' still need a fact sheet';
+    stats.missing > 0 ? stats.missing + ' still need a fact sheet' : '';
   if (data.generated) {
     const ts = new Date(data.generated).toLocaleString();
     document.getElementById('stats-updated').textContent = 'Updated ' + ts;
@@ -563,9 +597,11 @@ function renderDashboard(data) {
 
 function updateChipCounts() {
   const stats = computeStats(state.districts);
-  document.getElementById('count-all').textContent = '(' + stats.total + ')';
+  document.getElementById('count-all').textContent = '(' + state.districts.length + ')';
   document.getElementById('count-has').textContent = '(' + stats.withFS + ')';
   document.getElementById('count-missing').textContent = '(' + stats.missing + ')';
+  // Hide the "Missing" filter when every active district is covered
+  document.querySelector('.chip[data-preset="missing"]').style.display = stats.missing > 0 ? '' : 'none';
 }
 
 // =============================================================================
@@ -574,15 +610,15 @@ function updateChipCounts() {
 function applyFiltersAndSort() {
   let rows = state.districts.slice();
 
-  if (state.preset === 'has') rows = rows.filter(d => d.hasFactSheet);
-  else if (state.preset === 'missing') rows = rows.filter(d => !d.hasFactSheet);
+  if (state.preset === 'has') rows = rows.filter(hasCurrent);
+  else if (state.preset === 'missing') rows = rows.filter(d => !hasCurrent(d) && !isDefunct(d));
 
   const q = state.filter.toLowerCase().trim();
   if (q) {
     rows = rows.filter(d => {
       if (d.name && d.name.toLowerCase().includes(q)) return true;
       if (d.county && d.county.toLowerCase().includes(q)) return true;
-      if (d.irn && d.irn.toLowerCase().includes(q)) return true;
+      if (d.irn && irn6(d.irn).includes(q)) return true;
       if (d.houseReps && d.houseReps.some(r => r.toLowerCase().includes(q))) return true;
       if (d.senators && d.senators.some(r => r.toLowerCase().includes(q))) return true;
       if (d.houseDistricts && d.houseDistricts.some(n => String(n) === q)) return true;
@@ -605,14 +641,14 @@ function applyFiltersAndSort() {
 
 function sortValue(d, col) {
   switch (col) {
-    case 'irn':    return d.irn || '';
+    case 'irn':    return irn6(d.irn);
     case 'name':   return (d.name || '').toLowerCase();
     case 'county': return (d.county || '').toLowerCase();
     case 'hd':     return d.houseDistricts && d.houseDistricts.length ? d.houseDistricts[0] : 9999;
     case 'sd':     return d.senateDistricts && d.senateDistricts.length ? d.senateDistricts[0] : 9999;
     case 'hreps':  return (d.houseReps || []).join(', ').toLowerCase();
     case 'sreps':  return (d.senators || []).join(', ').toLowerCase();
-    case 'status': return d.hasFactSheet ? 1 : 0;
+    case 'status': return isDefunct(d) ? -1 : hasCurrent(d) ? 1 : 0;
     default: return '';
   }
 }
@@ -641,13 +677,16 @@ function renderTable() {
   }
 
   tbody.innerHTML = rows.map(d => {
-    const status = d.hasFactSheet
+    const status = isDefunct(d)
+      ? '<span class="status-defunct">Defunct district</span>'
+      : hasCurrent(d)
       ? '<span class="status-yes">\u2713 Have it</span>'
-      : '<span class="status-no">Need it</span>';
+      : '<span class="status-no">No fact sheet</span>';
 
-    const current = d.hasFactSheet && d.factSheetUrl
-      ? '<a class="link-current has-sheet" href="' + escapeAttr(d.factSheetUrl) + '" target="_blank" rel="noopener">View Current</a>'
-      : '<a class="link-current request" href="' + escapeAttr(REQUEST_FORM_URL) + '" target="_blank" rel="noopener">Request</a>';
+    const current = hasCurrent(d)
+      ? '<a class="link-current has-sheet" href="' + escapeAttr(currentUrl(d)) + '" target="_blank" rel="noopener">' + viewLabel(d) + '</a>'
+        + '<button class="copy-link" onclick="copyStableLink(this, \'' + irn6(d.irn) + '\')" title="Copy a permanent link to this district\'s fact sheet">Copy link</button>'
+      : '';
     const v2425 = d.factSheet2425Url
       ? '<a class="link-prev" href="' + escapeAttr(d.factSheet2425Url) + '" target="_blank" rel="noopener" title="2024-25 version">24-25</a>'
       : '<span class="link-empty">24-25</span>';
@@ -663,7 +702,7 @@ function renderTable() {
     const sreps = (d.senators || []).map(r => '<span class="rep-name">' + escapeHtml(r) + '</span>').join('<br>');
 
     return '<tr>'
-      + '<td data-label="IRN">' + escapeHtml(d.irn || '') + '</td>'
+      + '<td data-label="IRN">' + escapeHtml(irn6(d.irn)) + '</td>'
       + '<td class="school-name-cell" data-label="School">' + escapeHtml(d.name || '') + '</td>'
       + '<td data-label="County">' + escapeHtml(d.county || '') + '</td>'
       + '<td data-label="HD">' + hdNums + '</td>'
@@ -705,6 +744,20 @@ document.querySelectorAll('th.col-sort').forEach(th => {
     renderTable();
   });
 });
+
+function copyStableLink(btn, irn) {
+  const url = stableLink(irn);
+  const done = () => {
+    btn.textContent = 'Copied!';
+    btn.classList.add('copied');
+    setTimeout(() => { btn.textContent = 'Copy link'; btn.classList.remove('copied'); }, 1600);
+  };
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(done, () => window.prompt('Copy this link:', url));
+  } else {
+    window.prompt('Copy this link:', url);
+  }
+}
 
 // =============================================================================
 // UTILS
