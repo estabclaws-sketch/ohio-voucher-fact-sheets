@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ohio Voucher Fact Sheet</title>
+<meta name="description" content="Local fact sheet on Ohio's EdChoice Expansion private school vouchers.">
+<meta property="og:title" content="Ohio Voucher Fact Sheet">
+<meta property="og:description" content="Local fact sheet on Ohio's EdChoice Expansion private school vouchers.">
+<meta name="robots" content="noindex">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #1e3a5f; --ink-deep: #16223a; --ink-soft: #5d7390; --accent: #f4c842; --accent-deep: #c89400; --bg-soft: #f4f7fb; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    font-family: 'Montserrat', system-ui, sans-serif;
+    background: var(--bg-soft);
+    color: var(--ink-deep);
+    display: flex; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .card {
+    background: #fff; border-top: 6px solid var(--ink); border-radius: 8px;
+    box-shadow: 0 4px 18px rgba(30, 58, 95, 0.12);
+    padding: 28px 28px 24px; max-width: 440px; width: 100%; text-align: center;
+  }
+  .label { font-size: 11px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-soft); }
+  h1 { font-size: 22px; line-height: 1.25; margin: 8px 0 6px; color: var(--ink); }
+  p { font-size: 14px; line-height: 1.5; color: var(--ink-soft); margin: 10px 0 0; }
+  .spinner {
+    width: 28px; height: 28px; margin: 18px auto 4px; border-radius: 50%;
+    border: 3px solid rgba(30, 58, 95, 0.15); border-top-color: var(--ink);
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .btn {
+    display: inline-block; margin-top: 16px; padding: 10px 18px; border-radius: 4px;
+    font-weight: 700; font-size: 14px; text-decoration: none;
+    background: var(--ink); color: #fff;
+  }
+  .btn.alt { background: var(--accent); color: var(--ink-deep); border: 1px solid var(--accent-deep); }
+  .small { font-size: 12px; margin-top: 16px; }
+  .small a { color: var(--ink); font-weight: 600; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main class="card">
+  <div class="label">Ohio Voucher Fact Sheets</div>
+  <h1 id="title">Opening fact sheet…</h1>
+  <div id="spinner" class="spinner" aria-hidden="true"></div>
+  <p id="msg">This usually takes a few seconds.</p>
+  <div id="actions"></div>
+  <p class="small"><a href="./">Browse all fact sheets on the map</a></p>
+</main>
+
+<script>
+// Same endpoint the map uses.
+const TRACKER_API_URL = 'https://script.google.com/macros/s/AKfycbxrpFkErFLv2xUElXnaf1T_9lGdYy7XNsZqKPbpVMFaIMxN2ogRbhUcmSqeMzvsTIDW/exec';
+
+// ?year= values -> field in the tracker data. No year = the current fact sheet.
+const YEAR_FIELDS = {
+  '25-26': 'factSheet2526Url',
+  '24-25': 'factSheet2425Url',
+  '23-24': 'factSheet2324Url',
+};
+
+const $ = id => document.getElementById(id);
+const normIrn = s => String(s == null ? '' : s).replace(/\D/g, '').replace(/^0+/, '');
+
+function show(title, msg, buttonsHtml) {
+  $('spinner').hidden = true;
+  $('title').textContent = title;
+  $('msg').textContent = msg;
+  $('actions').innerHTML = buttonsHtml || '';
+}
+
+function escapeAttr(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+}
+
+(async function () {
+  const params = new URLSearchParams(location.search);
+  const irn = normIrn(params.get('irn'));
+  const year = (params.get('year') || '').trim();
+
+  if (!irn) {
+    // Opened without a district: just send them to the map.
+    location.replace('./');
+    return;
+  }
+
+  let data;
+  try {
+    const res = await fetch(TRACKER_API_URL);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    data = await res.json();
+  } catch (e) {
+    console.error(e);
+    show('Couldn’t load the fact sheet', 'Something went wrong on our end. Please try again, or find the district on the map.',
+      '<a class="btn" href="' + escapeAttr(location.href) + '">Try again</a>');
+    return;
+  }
+
+  const d = (data.districts || []).find(x => normIrn(x.irn) === irn);
+  if (!d) {
+    show('District not found', 'We couldn’t find a district with that ID. Use the map to find a fact sheet.',
+      '<a class="btn" href="./">Open the map</a>');
+    return;
+  }
+
+  $('title').textContent = d.name || 'Opening fact sheet…';
+  document.title = (d.name ? d.name + ' — ' : '') + 'Ohio Voucher Fact Sheet';
+
+  let url = '';
+  if (year && YEAR_FIELDS[year]) url = d[YEAR_FIELDS[year]] || '';
+  if (!year || !YEAR_FIELDS[year]) url = d.factSheetUrl || '';
+
+  if (!url) {
+    const which = year ? 'a ' + year + ' fact sheet' : 'a fact sheet yet';
+    show(d.name || 'No fact sheet yet', 'This district doesn’t have ' + which + '.',
+      (year && d.factSheetUrl ? '<a class="btn" href="?irn=' + encodeURIComponent(irn) + '">See the current fact sheet</a>' : '<a class="btn" href="./">Open the map</a>'));
+    return;
+  }
+
+  // Replace (not push) so the Back button skips this page.
+  location.replace(url);
+  setTimeout(() => {
+    show(d.name || 'Fact sheet', 'If it didn’t open automatically, use the button below.',
+      '<a class="btn" href="' + escapeAttr(url) + '">Open the fact sheet</a>');
+  }, 4000);
+})();
+</script>
+</body>
+</html>
